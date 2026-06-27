@@ -2,7 +2,7 @@
 # Server only needs FastAPI + PostgreSQL, NO Playwright/Chromium needed here.
 
 [phases.setup]
-nixPkgs = ["python3Packages.pip"]
+nixPkgs = ["python3", "python3Packages.pip"]
 
 [phases.install]
 cmds = [
