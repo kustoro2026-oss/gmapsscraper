@@ -28,5 +28,14 @@ Thumbs.db
 playwright-report/
 test-results/
 
+# Output files (scraper results)
+*.csv
+*.json
+!railway.json
+saved_results/
+
 # Railway
 .railway/
+
+# Server env
+server/.env

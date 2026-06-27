@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — GMaps Scraper</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; }
+        header { background: #1e293b; border-bottom: 1px solid #334155; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
+        header h1 { font-size: 20px; }
+        header nav a { color: #94a3b8; text-decoration: none; margin-left: 20px; font-size: 14px; }
+        header nav a:hover { color: #e2e8f0; }
+        main { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+        .card { background: #1e293b; border-radius: 16px; padding: 32px; border: 1px solid #334155; margin-bottom: 24px; }
+        .card h2 { font-size: 18px; margin-bottom: 16px; }
+        .welcome { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+        .welcome-sub { color: #94a3b8; margin-bottom: 24px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-box { background: #0f172a; border-radius: 12px; padding: 20px; text-align: center; }
+        .stat-box .value { font-size: 32px; font-weight: 700; color: #3b82f6; }
+        .stat-box .label { font-size: 13px; color: #94a3b8; margin-top: 4px; }
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; }
+        .pricing-card { background: #0f172a; border-radius: 12px; padding: 24px; text-align: center; border: 2px solid #334155; cursor: pointer; transition: border-color 0.2s }
+        .pricing-card:hover { border-color: #3b82f6; }
+        .pricing-card.popular { border-color: #3b82f6; }
+        .pricing-card .tier { font-weight: 700; font-size: 14px; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px; }
+        .pricing-card .price { font-size: 28px; font-weight: 800; color: #3b82f6; }
+        .pricing-card .details { font-size: 13px; color: #94a3b8; margin-top: 8px; }
+        .pricing-card .buy-btn { display: inline-block; margin-top: 16px; padding: 10px 24px; border-radius: 8px; background: #3b82f6; color: white; text-decoration: none; font-weight: 600; font-size: 14px; }
+        .row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #1e293b; }
+        .row:last-child { border-bottom: none; }
+        .empty { text-align: center; color: #94a3b8; padding: 40px; }
+        .btn { padding: 10px 20px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .btn-outline { background: transparent; border: 1px solid #334155; color: #e2e8f0; }
+        .api-key-box { background: #0f172a; padding: 16px; border-radius: 10px; font-family: monospace; font-size: 14px; word-break: break-all; color: #22c55e; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .api-key-box .copy-btn { background: #334155; border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>GMaps Scraper</h1>
+    <nav>
+        <span id="user-name" style="color:#94a3b8;font-size:14px;"></span>
+        <a href="#" onclick="logout()">Logout</a>
+    </nav>
+</header>
+
+<main>
+    <!-- Not logged in -->
+    <section id="guest-section">
+        <div class="card">
+            <div class="welcome">Selamat Datang</div>
+            <div class="welcome-sub">Scrape data bisnis dari Google Maps pakai IP sendiri.</div>
+            <a href="/login" class="btn" style="display:inline-block;background:#3b82f6;color:white;text-decoration:none;">Login / Daftar</a>
+        </div>
+        <div class="card">
+            <h2>Harga Paket</h2>
+            <div class="pricing-grid">
+                <div class="pricing-card"><div class="tier">Starter</div><div class="price">Rp 29K</div><div class="details">25x pencarian<br>Maks 10 scroll</div></div>
+                <div class="pricing-card popular"><div class="tier">Basic</div><div class="price">Rp 79K</div><div class="details">100x pencarian<br>Maks 20 scroll</div></div>
+                <div class="pricing-card"><div class="tier">Pro</div><div class="price">Rp 179K</div><div class="details">300x pencarian<br>Maks 40 scroll</div></div>
+                <div class="pricing-card"><div class="tier">Bisnis</div><div class="price">Rp 349K</div><div class="details">1000x pencarian<br>Maks 50 scroll</div></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Logged in -->
+    <section id="user-section" class="hidden">
+        <!-- Status -->
+        <div class="card">
+            <div class="welcome" id="welcome-text">Halo!</div>
+            <div class="welcome-sub" id="status-text">Memuat status...</div>
+            <div class="stats-grid" id="stats-grid"></div>
+        </div>
+
+        <!-- API Key -->
+        <div class="card">
+            <h2>API Key Kamu</h2>
+            <div class="api-key-box">
+                <span id="api-key-display">---</span>
+                <button class="copy-btn" onclick="copyApiKey()">Copy</button>
+            </div>
+            <p style="font-size:13px;color:#94a3b8;">Gunakan API key ini di Desktop App GMaps Scraper.</p>
+        </div>
+
+        <!-- Beli Paket -->
+        <div class="card" id="buy-section">
+            <h2>Beli Paket</h2>
+            <div class="pricing-grid" id="pricing-grid-loggedin"></div>
+        </div>
+
+        <!-- Riwayat Transaksi -->
+        <div class="card">
+            <h2>Riwayat Transaksi</h2>
+            <div id="txn-list"><div class="empty">Memuat...</div></div>
+        </div>
+    </section>
+</main>
+
+<script>
+const token = localStorage.getItem("token");
+const user = JSON.parse(localStorage.getItem("user") || "null");
+const guestSec = document.getElementById("guest-section");
+const userSec = document.getElementById("user-section");
+
+const packages = {
+    starter: { name: "STARTER", price: "Rp 29K", quota: 25, scrolls: 10 },
+    basic: { name: "BASIC", price: "Rp 79K", quota: 100, scrolls: 20 },
+    pro: { name: "PRO", price: "Rp 179K", quota: 300, scrolls: 40 },
+    bisnis: { name: "BISNIS", price: "Rp 349K", quota: 1000, scrolls: 50 },
+};
+
+function logout() { localStorage.clear(); window.location.reload(); }
+function copyApiKey() {
+    const key = document.getElementById("api-key-display").textContent;
+    navigator.clipboard.writeText(key).then(() => alert("API key dicopy!"));
+}
+
+async function loadStatus() {
+    if (!token) return;
+    const resp = await fetch("/api/license/status", { headers: { Authorization: "Bearer " + token } });
+    if (!resp.ok) { if (resp.status === 401) { logout(); } return; }
+    const data = await resp.json();
+
+    document.getElementById("welcome-text").textContent = "Halo, " + (user?.name || user?.email || "User") + "!";
+    document.getElementById("api-key-display").textContent = data.api_key || "---";
+
+    const lic = data.license;
+    let statusHtml = "";
+    if (lic) {
+        statusHtml = `
+            <div class="stat-box"><div class="value">${lic.remaining}</div><div class="label">Sisa Quota</div></div>
+            <div class="stat-box"><div class="value">${lic.package.toUpperCase()}</div><div class="label">Paket Aktif</div></div>
+            <div class="stat-box"><div class="value">${lic.total_quota}</div><div class="label">Total Quota</div></div>
+            <div class="stat-box"><div class="value">${lic.max_scrolls}</div><div class="label">Max Scroll</div></div>`;
+    } else {
+        statusHtml = `<div class="stat-box" style="grid-column:1/-1"><div class="value">-</div><div class="label">Belum punya lisensi aktif</div></div>`;
+    }
+    document.getElementById("stats-grid").innerHTML = statusHtml;
+
+    // Render pricing
+    const grid = document.getElementById("pricing-grid-loggedin");
+    grid.innerHTML = Object.entries(packages).map(([key, p]) => `
+        <div class="pricing-card" onclick="buyPackage('${key}')">
+            <div class="tier">${p.name}</div>
+            <div class="price">${p.price}</div>
+            <div class="details">${p.quota}x pencarian<br>Maks ${p.scrolls} scroll</div>
+            <span class="buy-btn">Beli</span>
+        </div>
+    `).join("");
+}
+
+async function buyPackage(key) {
+    if (!token) { window.location.href = "/login"; return; }
+    const fd = new FormData();
+    fd.append("package_key", key);
+    const resp = await fetch("/api/payment/create", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
+    const data = await resp.json();
+    if (data.payment_url) {
+        window.open(data.payment_url, "_blank");
+        alert("Selesaikan pembayaran di tab baru. Refresh halaman ini setelah bayar.");
+    } else {
+        alert("Gagal: " + (data.detail || "Unknown error"));
+    }
+}
+
+async function loadTransactions() {
+    if (!token) return;
+    try {
+        const resp = await fetch("/api/admin/transactions", { headers: { Authorization: "Bearer " + token } });
+        const data = await resp.json();
+        const list = document.getElementById("txn-list");
+        if (!data.transactions || data.transactions.length === 0) {
+            list.innerHTML = '<div class="empty">Belum ada transaksi</div>';
+            return;
+        }
+        list.innerHTML = data.transactions.map(t => `
+            <div class="row">
+                <span><strong>${t.product.toUpperCase()}</strong> — Rp ${t.amount.toLocaleString()}</span>
+                <span style="color:${t.status==='success'?'#22c55e':t.status==='failed'?'#ef4444':'#f59e0b'}">${t.status.toUpperCase()}</span>
+                <span style="color:#94a3b8;font-size:13px;">${t.payment_method||'-'}</span>
+            </div>
+        `).join("");
+    } catch (e) { /* ignore */ }
+}
+
+if (token && user) {
+    guestSec.classList.add("hidden");
+    userSec.classList.remove("hidden");
+    document.getElementById("user-name").textContent = user.email;
+    loadStatus();
+    loadTransactions();
+}
+</script>
+</body>
+</html>
