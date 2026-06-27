@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Maps Scraper</title>
+    <link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+
+<header>
+    <h1>📍 Google Maps Scraper</h1>
+    <p>Cari dan kumpulkan data tempat usaha dari Google Maps</p>
+</header>
+
+<main>
+    <!-- ── Form Input ────────────────────────────────────────────── -->
+    <section class="card" id="form-section">
+        <form id="scrape-form">
+            <div class="form-group">
+                <label for="keyword">🔍 Kata Kunci Pencarian</label>
+                <input type="text" id="keyword" name="keyword"
+                       placeholder="contoh: jasa tour surabaya, klinik gigi jakarta"
+                       required autofocus>
+                <small>Ketik kata kunci seperti di Google Maps</small>
+            </div>
+
+            <div class="form-group">
+                <label>📋 Data yang Ingin Ditampilkan</label>
+                <div class="checkbox-group">
+                    <label><input type="checkbox" name="fields" value="nama_usaha" checked> Nama Usaha</label>
+                    <label><input type="checkbox" name="fields" value="nomor_hp" checked> Nomor HP</label>
+                    <label><input type="checkbox" name="fields" value="alamat" checked> Alamat</label>
+                    <label><input type="checkbox" name="fields" value="website" checked> Website</label>
+                </div>
+            </div>
+
+            <!-- Pengaturan Lanjutan (collapsed) -->
+            <details class="advanced-settings" open>
+                <summary>⚙️ Pengaturan Lanjutan</summary>
+                <div class="form-group" style="margin-top:12px;">
+                    <label for="max-scrolls">Jumlah Scroll (0-50)</label>
+                    <input type="number" id="max-scrolls" value="0" min="0" max="50" disabled>
+                    <small>🔒 Scroll dinonaktifkan untuk demo. <strong>Daftar untuk unlock scroll & hasil maksimal.</strong></small>
+                </div>
+            </details>
+
+            <button type="submit" id="submit-btn">
+                🚀 Mulai Cari
+            </button>
+        </form>
+    </section>
+
+    <!-- ── Pricing ──────────────────────────────────────────────── -->
+    <section class="pricing-section" id="pricing">
+        <div class="pricing-header">
+            <span class="pricing-eyebrow">HARGA TRANSPARAN</span>
+            <h2>Paket yang Sesuai Kebutuhan Anda</h2>
+            <p class="pricing-subtitle">Mulai dari <strong>Rp 0</strong>. Bayar sesuai pemakaian, tanpa langganan bulanan. Cari ratusan kontak bisnis dalam hitungan menit.</p>
+        </div>
+
+        <div class="pricing-grid">
+
+            <!-- Gratis -->
+            <div class="pricing-card">
+                <div class="pricing-card-top">
+                    <div class="pricing-icon-circle">🎁</div>
+                    <div class="pricing-tier">GRATIS</div>
+                    <div class="pricing-desc">Coba dulu, baru putuskan</div>
+                </div>
+                <div class="pricing-card-price">
+                    <span class="pricing-num">Rp 0</span>
+                </div>
+                <div class="pricing-card-divider"></div>
+                <div class="pricing-card-body">
+                    <ul class="pricing-features">
+                        <li><span class="check">✓</span> 5x pencarian</li>
+                        <li><span class="check">✓</span> Maks 1 scroll / cari</li>
+                        <li><span class="check">✓</span> Download CSV</li>
+                        <li><span class="check">✓</span> Tanpa kartu kredit</li>
+                    </ul>
+                </div>
+                <div class="pricing-card-bottom">
+                    <a href="#form-section" class="pricing-btn outline">Mulai Gratis</a>
+                </div>
+            </div>
+
+            <!-- Micro -->
+            <div class="pricing-card">
+                <div class="pricing-card-top">
+                    <div class="pricing-icon-circle">⚡</div>
+                    <div class="pricing-tier">MICRO</div>
+                    <div class="pricing-desc">Kebutuhan kecil</div>
+                </div>
+                <div class="pricing-card-price">
+                    <span class="pricing-num">Rp 29K</span>
+                </div>
+                <div class="pricing-card-divider"></div>
+                <div class="pricing-card-body">
+                    <ul class="pricing-features">
+                        <li><span class="check">✓</span> 25x pencarian</li>
+                        <li><span class="check">✓</span> Maks 10 scroll / cari</li>
+                        <li><span class="check">✓</span> Download CSV</li>
+                        <li><span class="check">✓</span> Hasil tanpa batas</li>
+                    </ul>
+                </div>
+                <div class="pricing-card-bottom">
+                    <a href="#form-section" class="pricing-btn outline">Pilih Micro</a>
+                </div>
+            </div>
+
+            <!-- Basic (Popular) -->
+            <div class="pricing-card popular">
+                <div class="pricing-badge">🔥 PALING DIMINATI</div>
+                <div class="pricing-card-top">
+                    <div class="pricing-icon-circle accent">⭐</div>
+                    <div class="pricing-tier">BASIC</div>
+                    <div class="pricing-desc">Terbaik untuk mayoritas</div>
+                </div>
+                <div class="pricing-card-price">
+                    <span class="pricing-num highlight">Rp 79K</span>
+                </div>
+                <div class="pricing-card-divider"></div>
+                <div class="pricing-card-body">
+                    <ul class="pricing-features">
+                        <li><span class="check">✓</span> 100x pencarian</li>
+                        <li><span class="check">✓</span> Maks 20 scroll / cari</li>
+                        <li><span class="check">✓</span> Download CSV</li>
+                        <li><span class="check">✓</span> Hasil tanpa batas</li>
+                        <li><span class="check">✓</span> Hasil lebih lengkap</li>
+                    </ul>
+                </div>
+                <div class="pricing-card-bottom">
+                    <a href="#form-section" class="pricing-btn primary">Pilih Basic</a>
+                </div>
+            </div>
+
+            <!-- Pro -->
+            <div class="pricing-card">
+                <div class="pricing-card-top">
+                    <div class="pricing-icon-circle">🚀</div>
+                    <div class="pricing-tier">PRO</div>
+                    <div class="pricing-desc">Pengguna serius</div>
+                </div>
+                <div class="pricing-card-price">
+                    <span class="pricing-num">Rp 179K</span>
+                </div>
+                <div class="pricing-card-divider"></div>
+                <div class="pricing-card-body">
+                    <ul class="pricing-features">
+                        <li><span class="check">✓</span> 300x pencarian</li>
+                        <li><span class="check">✓</span> Maks 40 scroll / cari</li>
+                        <li><span class="check">✓</span> Download CSV</li>
+                        <li><span class="check">✓</span> Hasil tanpa batas</li>
+                        <li><span class="check">✓</span> Prioritas pemrosesan</li>
+                    </ul>
+                </div>
+                <div class="pricing-card-bottom">
+                    <a href="#form-section" class="pricing-btn outline">Pilih Pro</a>
+                </div>
+            </div>
+
+            <!-- Bisnis -->
+            <div class="pricing-card">
+                <div class="pricing-card-top">
+                    <div class="pricing-icon-circle">🏢</div>
+                    <div class="pricing-tier">BISNIS</div>
+                    <div class="pricing-desc">Skala besar & rutin</div>
+                </div>
+                <div class="pricing-card-price">
+                    <span class="pricing-num">Rp 499K</span>
+                </div>
+                <div class="pricing-card-divider"></div>
+                <div class="pricing-card-body">
+                    <ul class="pricing-features">
+                        <li><span class="check">✓</span> 1.000x pencarian</li>
+                        <li><span class="check">✓</span> Maks 50 scroll / cari</li>
+                        <li><span class="check">✓</span> Download CSV</li>
+                        <li><span class="check">✓</span> Hasil tanpa batas</li>
+                        <li><span class="check">✓</span> Prioritas utama</li>
+                        <li><span class="check">✓</span> Support prioritas</li>
+                    </ul>
+                </div>
+                <div class="pricing-card-bottom">
+                    <a href="#form-section" class="pricing-btn outline">Pilih Bisnis</a>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="pricing-guarantee">
+            <span class="guarantee-icon">🛡️</span>
+            <div><strong>Garansi Tanpa Risiko.</strong> 1 scrap = 1x pencarian. <strong>Scroll = jumlah gulir hasil</strong> (semakin banyak scroll, semakin banyak data yang diambil). Tidak ada biaya tersembunyi. Kredit <strong>tidak hangus</strong> — pakai kapan saja.</div>
+        </div>
+    </section>
+</main>
+
+<footer>
+    <p>© Google Maps Scraper</p>
+</footer>
+
+<script src="/static/script.js?v=2"></script>
+</body>
+</html>

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hasil Pencarian — Google Maps Scraper</title>
+    <link rel="stylesheet" href="/static/style.css?v=4">
+</head>
+<body>
+
+<header>
+    <h1>📍 Google Maps Scraper</h1>
+    <p>Hasil ekstraksi data tempat usaha</p>
+</header>
+
+<main>
+    <!-- ── Loading ───────────────────────────────────────────────── -->
+    <section class="card" id="loading-section">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <h2 id="loading-text">Mencari data...</h2>
+            <div class="progress-bar-wrapper">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Hasil ─────────────────────────────────────────────────── -->
+    <section class="card hidden" id="result-section">
+        <div class="result-header">
+            <h2>✅ Hasil Ekstraksi</h2>
+            <div class="result-actions">
+                <button onclick="downloadCSV()" class="btn-sm">📥 Download CSV</button>
+                <button onclick="cariLagi()" class="btn-sm btn-outline">🔄 Cari Lagi</button>
+            </div>
+        </div>
+        <div id="result-stats"></div>
+        <div class="table-wrapper">
+            <table id="result-table">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <pre id="result-json" class="hidden"></pre>
+
+        <!-- Daftar CTA -->
+        <div class="daftar-cta" id="daftar-cta">
+            <div class="daftar-cta-content">
+                <span class="daftar-icon">🚀</span>
+                <div>
+                    <h3>Ingin hasil lebih lengkap?</h3>
+                    <p>Demo hanya menampilkan beberapa data. Daftar sekarang untuk unlock <strong>scroll tanpa batas</strong>, hasil maksimal, dan download tanpa limit.</p>
+                </div>
+            </div>
+            <a href="/" class="daftar-btn">🔥 Lihat Paket & Daftar</a>
+        </div>
+    </section>
+
+    <!-- ── Error ─────────────────────────────────────────────────── -->
+    <section class="card hidden" id="error-section">
+        <h2>❌ Gagal</h2>
+        <p id="error-message"></p>
+        <button onclick="cariLagi()" class="btn-sm">🔄 Coba Lagi</button>
+    </section>
+</main>
+
+<footer>
+    <p>© Google Maps Scraper</p>
+</footer>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────
+
+let lastResult = null;
+
+// ── DOM Elements ─────────────────────────────────────────────────────
+
+const loadingSection = document.getElementById("loading-section");
+const resultSection = document.getElementById("result-section");
+const errorSection  = document.getElementById("error-section");
+
+const loadingText   = document.getElementById("loading-text");
+const resultTable   = document.getElementById("result-table");
+const resultStats   = document.getElementById("result-stats");
+const resultJSON    = document.getElementById("result-json");
+const errorMessage  = document.getElementById("error-message");
+
+// ── Baca parameter dari URL ──────────────────────────────────────────
+
+const params = new URLSearchParams(window.location.search);
+const keyword = params.get("keyword");
+const maxScrolls = parseInt(params.get("max_scrolls")) || 0;
+const fields = params.get("fields") || "nama_usaha,nomor_hp,alamat,website";
+
+if (!keyword) {
+    // Tidak ada keyword — redirect ke landing page
+    window.location.replace("/");
+}
+
+// ── Loading animation ────────────────────────────────────────────────
+
+const loadingMessages = [
+    "Mencari data...",
+    "Mengumpulkan hasil...",
+    "Memproses informasi...",
+];
+
+let loadingInterval = null;
+let progressInterval = null;
+
+function startLoadingAnimation() {
+    let i = 0;
+    loadingText.textContent = loadingMessages[0];
+
+    const bar = document.getElementById("progress-bar");
+    bar.style.width = "0%";
+    let p = 0;
+    progressInterval = setInterval(() => {
+        p += Math.random() * 8;
+        if (p > 90) p = 90;
+        bar.style.width = p + "%";
+    }, 600);
+
+    loadingInterval = setInterval(() => {
+        i = (i + 1) % loadingMessages.length;
+        loadingText.textContent = loadingMessages[i];
+    }, 4000);
+}
+
+function stopLoadingAnimation(complete = true) {
+    if (loadingInterval) {
+        clearInterval(loadingInterval);
+        loadingInterval = null;
+    }
+    if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+    }
+    if (complete) {
+        const bar = document.getElementById("progress-bar");
+        bar.style.width = "100%";
+    }
+}
+
+// ── Section visibility ───────────────────────────────────────────────
+
+function showSection(section) {
+    loadingSection.classList.add("hidden");
+    resultSection.classList.add("hidden");
+    errorSection.classList.add("hidden");
+    section.classList.remove("hidden");
+}
+
+// ── Escape HTML ──────────────────────────────────────────────────────
+
+function escapeHTML(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// ── Render hasil ─────────────────────────────────────────────────────
+
+function renderResult(result) {
+    const data = result.data || [];
+
+    resultStats.innerHTML = `
+        🏷️  <strong>${escapeHTML(result.keyword)}</strong> &nbsp;|&nbsp;
+        📊 ${result.total_results} usaha ditemukan
+    `;
+
+    resultJSON.textContent = JSON.stringify(data, null, 2);
+
+    if (data.length === 0) {
+        resultTable.querySelector("thead").innerHTML = "";
+        resultTable.querySelector("tbody").innerHTML =
+            '<tr><td colspan="99" style="text-align:center;color:#999;">Tidak ada data yang berhasil diekstrak</td></tr>';
+        return;
+    }
+
+    const keys = Object.keys(data[0]);
+
+    resultTable.querySelector("thead").innerHTML = `
+        <tr>${keys.map(k => `<th>${escapeHTML(k)}</th>`).join("")}</tr>
+    `;
+
+    resultTable.querySelector("tbody").innerHTML = data.map(row =>
+        `<tr>${keys.map(k => `<td>${escapeHTML(row[k] || "")}</td>`).join("")}</tr>`
+    ).join("");
+}
+
+// ── Download CSV ─────────────────────────────────────────────────────
+
+function downloadCSV() {
+    if (!lastResult || !lastResult.data || lastResult.data.length === 0) return;
+
+    const data = lastResult.data;
+    const keys = Object.keys(data[0]);
+
+    let csv = keys.join(",") + "\n";
+
+    for (const row of data) {
+        const vals = keys.map(k => {
+            let v = (row[k] || "").toString();
+            if (v.includes(",") || v.includes('"') || v.includes("\n")) {
+                v = '"' + v.replace(/"/g, '""') + '"';
+            }
+            return v;
+        });
+        csv += vals.join(",") + "\n";
+    }
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${lastResult.keyword.replace(/\s+/g, "_")}_${lastResult.task_id}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// ── Cari Lagi ────────────────────────────────────────────────────────
+
+function cariLagi() {
+    window.location.href = "/";
+}
+
+// ── Mulai scraping ───────────────────────────────────────────────────
+
+(async function run() {
+    startLoadingAnimation();
+
+    const formData = new FormData();
+    formData.append("keyword", keyword);
+    formData.append("max_scrolls", maxScrolls.toString());
+    formData.append("fields", fields);
+
+    try {
+        const resp = await fetch("/api/scrape", {
+            method: "POST",
+            body: formData,
+        });
+
+        const json = await resp.json();
+        stopLoadingAnimation();
+
+        if (!resp.ok || !json.success) {
+            showError(json.error || "Gagal scrape Google Maps");
+            return;
+        }
+
+        lastResult = json;
+        renderResult(json);
+        showSection(resultSection);
+
+        const daftarCTA = document.getElementById("daftar-cta");
+        if (daftarCTA) {
+            daftarCTA.style.display = "block";
+        }
+
+    } catch (err) {
+        stopLoadingAnimation();
+        showError("Koneksi gagal: " + err.message);
+    }
+})();
+
+function showError(msg) {
+    errorMessage.textContent = msg;
+    showSection(errorSection);
+    const daftarCTA = document.getElementById("daftar-cta");
+    if (daftarCTA) daftarCTA.style.display = "none";
+}
+</script>
+
+</body>
+</html>
