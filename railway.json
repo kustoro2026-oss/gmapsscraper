@@ -2,11 +2,11 @@
     "build": {
         "builder": "NIXPACKS",
         "nixpacksPlan": {
-            "startPhase": "python server/app.py"
+            "startPhase": "/opt/venv/bin/python server/app.py"
         }
     },
     "deploy": {
-        "startCommand": "python server/app.py",
+        "startCommand": "/opt/venv/bin/python server/app.py",
         "restartPolicyType": "ON_FAILURE"
     }
 }
