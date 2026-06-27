@@ -11,6 +11,8 @@ Alur:
 """
 
 import uuid
+import random
+import asyncio as aio
 from pathlib import Path
 
 from fastapi import FastAPI, Form
@@ -28,7 +30,32 @@ BASE_DIR = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 
-# ── Utility: Ekstrak info usaha dari DOM Google Maps ───────────────
+# ── Anti-Detection: Random User-Agent Pool ────────────────────────
+USER_AGENTS = [
+    # Chrome Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    # Chrome Mac
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    # Edge Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0",
+    # Firefox Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0",
+]
+
+# ── Anti-Detection: Browser Launch Args ───────────────────────────
+BROWSER_ARGS = [
+    "--disable-blink-features=AutomationControlled",  # Sembunyikan automation flag
+    "--disable-dev-shm-usage",                         # Hindari crash di container/VPS
+    "--no-sandbox",                                    # Required di Docker container
+    "--disable-infobars",                              # Hilangkan info bar Chrome
+    "--disable-setuid-sandbox",                        # Kompatibilitas sandbox
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--ignore-certificate-errors",
+    "--window-size=1366,768",
+]
 
 async def extract_business_info(page) -> dict:
     """
@@ -159,18 +186,63 @@ async def scrape_businesses_from_gmaps(keyword: str,
         url = f"https://www.google.com/maps/search/{keyword.replace(' ', '+')}"
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        # ── Anti-Detection: Browser launch dengan arg khusus ────
+        browser = await p.chromium.launch(
+            headless=False,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--disable-dev-shm-usage",
+                "--no-sandbox",
+                "--disable-infobars",
+                "--disable-setuid-sandbox",
+                "--no-first-run",
+                "--no-default-browser-check",
+                "--ignore-certificate-errors",
+            ]
+        )
+
+        # ── Random User-Agent ────────────────────────────────────
+        random_ua = random.choice(USER_AGENTS)
+        print(f"   🕵️  UA: {random_ua[:60]}...")
 
         context_kwargs = {
-            "viewport": {"width": 1280, "height": 900},
+            "viewport": {"width": random.randint(1280, 1440), "height": random.randint(800, 960)},
             "locale": "id-ID",
+            "timezone_id": "Asia/Jakarta",
+            "user_agent": random_ua,
             "permissions": ["geolocation"],
+            "extra_http_headers": {
+                "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Encoding": "gzip, deflate, br",
+                "DNT": "1",
+                "Upgrade-Insecure-Requests": "1",
+            },
         }
         if lat is not None and lng is not None:
             context_kwargs["geolocation"] = {"latitude": lat, "longitude": lng}
 
         context = await browser.new_context(**context_kwargs)
         page = await context.new_page()
+
+        # ── Anti-Detection: Inject stealth scripts ──────────────
+        await page.add_init_script("""
+            // Overwrite navigator.webdriver agar tidak terdeteksi automation
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            // Overwrite chrome object
+            window.chrome = {runtime: {}};
+            // Overwrite permissions
+            const originalQuery = window.navigator.permissions.query;
+            window.navigator.permissions.query = (parameters) => (
+                parameters.name === 'notifications' ?
+                Promise.resolve({state: Notification.permission}) :
+                originalQuery(parameters)
+            );
+            // Overwrite plugins length
+            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+            // Overwrite languages
+            Object.defineProperty(navigator, 'languages', {get: () => ['id-ID', 'id', 'en-US', 'en']});
+        """)
 
         # ═══════════════════════════════════════════════════════════
         # PHASE 1: Buka hasil pencarian → scroll → kumpulkan link
@@ -194,17 +266,21 @@ async def scrape_businesses_from_gmaps(keyword: str,
             if not ok:
                 raise Exception("Gagal membuka Google Maps — timeout / koneksi")
 
+        # ── Random initial delay (simulasi user mikir) ──────────
+        await page.wait_for_timeout(random.randint(1500, 3500))
+
         try:
-            await page.wait_for_selector('[role="feed"]', timeout=15000)
+            await page.wait_for_selector('[role="feed"]', timeout=20000)
             print(f"   ✅ Hasil pencarian muncul")
         except:
             print(f"   ⚠  Feed tidak ditemukan, lanjut")
 
-        await page.wait_for_timeout(3000)
+        # ── Random settle time ───────────────────────────────────
+        await page.wait_for_timeout(random.randint(2000, 4000))
 
         try:
             await page.keyboard.press("Escape")
-            await page.wait_for_timeout(500)
+            await page.wait_for_timeout(random.randint(400, 800))
         except:
             pass
 
@@ -222,7 +298,7 @@ async def scrape_businesses_from_gmaps(keyword: str,
         bottom_hit_count = 0      # berapa kali mentok berturut
         MAX_STUCK = 3             # 3x stuck baru stop
         MIN_SCROLLS_BEFORE_STOP = 3
-        SCROLL_WAIT = 3.5         # detik tunggu setelah scroll
+        SCROLL_WAIT = random.uniform(3.0, 4.5)  # detik tunggu setelah scroll (random)
 
         for i in range(limit):
             # ⏱ Timeout total
@@ -232,22 +308,23 @@ async def scrape_businesses_from_gmaps(keyword: str,
                 break
 
             # ── Scroll ───────────────────────────────────────────
-            info = await page.evaluate("""
-                () => {
+            scroll_ratio = random.uniform(0.7, 0.95)  # random scroll amount
+            info = await page.evaluate(f"""
+                () => {{
                     const feed = document.querySelector('[role="feed"]');
-                    if (!feed) return {scrolled: false, top: 0, count: 0, atBottom: false, scrollHeight: 0};
+                    if (!feed) return {{scrolled: false, top: 0, count: 0, atBottom: false, scrollHeight: 0}};
                     const prevTop = feed.scrollTop;
-                    feed.scrollBy(0, feed.clientHeight * 0.85);
+                    feed.scrollBy(0, feed.clientHeight * {scroll_ratio});
                     const cards = feed.querySelectorAll('[role="article"]');
                     const atBottom = (feed.scrollTop + feed.clientHeight) >= (feed.scrollHeight - 25);
-                    return {
+                    return {{
                         scrolled: feed.scrollTop > (prevTop + 5),
                         top: feed.scrollTop,
                         count: cards.length,
                         atBottom: atBottom,
                         scrollHeight: feed.scrollHeight
-                    };
-                }
+                    }};
+                }}
             """)
             await page.wait_for_timeout(int(SCROLL_WAIT * 1000))
 
@@ -263,8 +340,8 @@ async def scrape_businesses_from_gmaps(keyword: str,
                 bottom_hit_count += 1
                 if bottom_hit_count <= 3:
                     prev_h = cur_scroll_height
-                    print(f"      🔄  Mentok #{bottom_hit_count}: tunggu 6s, trigger loading batch berikutnya...")
-                    await page.wait_for_timeout(6000)
+                    print(f"      🔄  Mentok #{bottom_hit_count}: tunggu, trigger batch berikutnya...")
+                    await page.wait_for_timeout(random.randint(5000, 8000))
                     # Scroll paksa ke paling ujung biar trigger lazy load
                     new_h = await page.evaluate("""
                         () => {
@@ -274,7 +351,7 @@ async def scrape_businesses_from_gmaps(keyword: str,
                             return feed.scrollHeight;
                         }
                     """)
-                    await page.wait_for_timeout(3000)
+                    await page.wait_for_timeout(random.randint(2500, 4000))
                     # Cek ulang
                     recheck = await page.evaluate("""
                         () => {
@@ -354,9 +431,10 @@ async def scrape_businesses_from_gmaps(keyword: str,
                 print(f"   🛑  Stop: scrollHeight naik terus tanpa kartu baru (skeleton)")
                 break
 
-        # ── Final settle: tunggu ekstra biar semua card selesai render ──
-        print(f"   ⏳  Final settle: tunggu 5 detik...")
-        await page.wait_for_timeout(5000)
+        # ── Final settle: random delay ──
+        settle_time = random.randint(4000, 7000)
+        print(f"   ⏳  Final settle: tunggu {settle_time/1000:.1f} detik...")
+        await page.wait_for_timeout(settle_time)
 
         # Kumpulkan link — multi-strategy
         place_urls: list[str] = await page.evaluate("""
@@ -397,12 +475,11 @@ async def scrape_businesses_from_gmaps(keyword: str,
         # PHASE 2: Buka tab paralel → ekstrak DOM sekaligus
         # ═══════════════════════════════════════════════════════════
 
-        import asyncio as aio
-
-        CONCURRENCY = 10  # jumlah tab paralel sekaligus
+        CONCURRENCY = 4  # jumlah tab paralel (rendah = lebih aman)
         semaphore = aio.Semaphore(CONCURRENCY)
         total = len(place_urls)
         done_count = 0
+        delay_lock = aio.Lock()  # biar delay per tab berurutan
 
         # Pre-allocate results list biar urutan tetap
         results = [{}] * total
@@ -411,14 +488,19 @@ async def scrape_businesses_from_gmaps(keyword: str,
             nonlocal done_count
             async with semaphore:
                 try:
+                    # ── Random delay antar tab (anti rate-limit) ──
+                    jitter = random.uniform(1.5, 4.0)
+                    await aio.sleep(idx * random.uniform(0.3, 1.0) + jitter)
+
                     biz_page = await context.new_page()
                     try:
                         await biz_page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                        await biz_page.wait_for_timeout(2500)
+                        # Random wait setelah load
+                        await biz_page.wait_for_timeout(random.randint(2000, 4000))
 
                         try:
                             await biz_page.keyboard.press("Escape")
-                            await biz_page.wait_for_timeout(300)
+                            await biz_page.wait_for_timeout(random.randint(200, 500))
                         except:
                             pass
 
