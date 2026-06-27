@@ -11,6 +11,7 @@ form.addEventListener("submit", (e) => {
 
     const keyword = document.getElementById("keyword").value.trim();
     const maxScrolls = parseInt(document.getElementById("max-scrolls").value) || 0;
+    const proxy = document.getElementById("proxy").value.trim();
 
     // Kumpulkan field yang dipilih
     const fieldCheckboxes = document.querySelectorAll('input[name="fields"]:checked');
@@ -31,6 +32,9 @@ form.addEventListener("submit", (e) => {
     params.set("keyword", keyword);
     params.set("max_scrolls", maxScrolls.toString());
     params.set("fields", fields.join(","));
+    if (proxy) {
+        params.set("proxy", proxy);
+    }
 
     window.location.href = "/hasil?" + params.toString();
 });

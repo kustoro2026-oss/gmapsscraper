@@ -12,6 +12,7 @@ Alur:
 
 import uuid
 import random
+import time as time_mod
 import asyncio as aio
 from pathlib import Path
 
@@ -28,6 +29,15 @@ BASE_DIR = Path(__file__).parent
 
 # Static
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+
+
+# ── Global Rate Limiter (anti banyak user serentak) ───────────────
+# Max 2 scrape jalan bersamaan. Masing-masing punya browser instance
+# sendiri dengan fingerprint unik → Google Maps lihat sebagai user berbeda.
+# Cooldown 5 detik antar scrape selesai → cegah burst request.
+SCRAPE_LOCK = aio.Semaphore(2)          # max 2 concurrent scrape
+COOLDOWN_SECONDS = 5                    # jeda minimal antar scrape (detik)
+_last_scrape_time = 0.0                 # timestamp scrape terakhir
 
 
 # ── Anti-Detection: Random User-Agent Pool ────────────────────────
@@ -172,7 +182,8 @@ async def extract_business_info(page) -> dict:
 
 async def scrape_businesses_from_gmaps(keyword: str,
                                         max_scrolls: int = 10,
-                                        lat: float = None, lng: float = None) -> list[dict]:
+                                        lat: float = None, lng: float = None,
+                                        proxy: str = None) -> list[dict]:
     """
     Phase 1: Buka Google Maps, cari keyword, scroll feed, kumpulkan link tiap usaha.
     Phase 2: Buka tiap link di tab baru → ekstrak data dari DOM langsung.
@@ -203,6 +214,8 @@ async def scrape_businesses_from_gmaps(keyword: str,
 
         # ── Random User-Agent ────────────────────────────────────
         random_ua = random.choice(USER_AGENTS)
+        if proxy:
+            print(f"   🏠  Proxy user: {proxy[:50]}...")
         print(f"   🕵️  UA: {random_ua[:60]}...")
 
         context_kwargs = {
@@ -221,6 +234,10 @@ async def scrape_businesses_from_gmaps(keyword: str,
         }
         if lat is not None and lng is not None:
             context_kwargs["geolocation"] = {"latitude": lat, "longitude": lng}
+
+        # ── Proxy: user bawa IP sendiri ─────────────────────────
+        if proxy:
+            context_kwargs["proxy"] = {"server": proxy}
 
         context = await browser.new_context(**context_kwargs)
         page = await context.new_page()
@@ -285,7 +302,6 @@ async def scrape_businesses_from_gmaps(keyword: str,
             pass
 
         # Scroll — handling batch loading Google Maps
-        import time as time_mod
         scroll_start = time_mod.time()
         SCROLL_TIMEOUT = 300  # max total detik (5 menit)
         limit = max_scrolls
@@ -545,53 +561,102 @@ async def hasil():
 @app.post("/api/scrape")
 async def scrape(keyword: str = Form(...),
                  max_scrolls: int = Form(0),
-                 fields: str = Form("nama_usaha,nomor_hp,alamat,website")):
+                 fields: str = Form("nama_usaha,nomor_hp,alamat,website"),
+                 proxy: str = Form("")):
     """
     Endpoint utama: scrape Google Maps → ekstrak data dari DOM langsung.
-    Tidak pakai AI / token / API key.
-    fields: comma-separated list (nama_usaha,nomor_hp,alamat,website)
+    proxy: opsional — http://host:port atau http://user:pass@host:port
+    Kalau proxy diisi (IP residential user sendiri), skip rate limiter.
     """
+    global _last_scrape_time
+
     task_id = uuid.uuid4().hex[:8]
+    proxy = proxy.strip() if proxy else None
+    is_proxy_user = bool(proxy)
+
     selected_fields = [f.strip() for f in fields.split(",") if f.strip()]
     if not selected_fields:
         selected_fields = ["nama_usaha", "nomor_hp", "alamat", "website"]
     print(f"[{task_id}] 📋  Fields diterima: {fields}")
     print(f"[{task_id}] 📋  Selected fields: {selected_fields}")
+    if is_proxy_user:
+        print(f"[{task_id}] 🏠  Proxy user — skip rate limiter")
 
-    try:
-        # ── Keyword murni, tanpa tambahan ────────────────────────
-        print(f"[{task_id}] 🔍  Mencari: {keyword}")
+    # ── Rate Limit: hanya untuk non-proxy user ──────────────────
+    if is_proxy_user:
+        # Proxy user = IP sendiri, bebas scrape tanpa antri
+        async with SCRAPE_LOCK:
+            try:
+                print(f"[{task_id}] 🔍  Mencari: {keyword} (via proxy...)")
+                lat, lng = detect_location(keyword)
+                print(f"[{task_id}] 📍  Lokasi: {lat}, {lng}")
+                data = await scrape_businesses_from_gmaps(keyword, max_scrolls, lat, lng, proxy=proxy)
+                print(f"[{task_id}] ✅  Dapat {len(data)} hasil")
 
-        # ── Deteksi lokasi dari keyword ──────────────────────────
-        lat, lng = detect_location(keyword)
-        print(f"[{task_id}] 📍  Lokasi: {lat}, {lng}")
+                if set(selected_fields) != {"nama_usaha", "nomor_hp", "alamat", "website"}:
+                    data = [{k: v for k, v in row.items() if k in selected_fields} for row in data]
+                    print(f"[{task_id}] ✂️  Difilter ke field: {', '.join(selected_fields)}")
 
-        # ── 1. Scroll + kumpulkan link → ekstrak DOM per usaha ────
-        data = await scrape_businesses_from_gmaps(keyword, max_scrolls, lat, lng)
-        print(f"[{task_id}] ✅  Dapat {len(data)} hasil")
+                return JSONResponse({
+                    "success": True,
+                    "task_id": task_id,
+                    "keyword": keyword,
+                    "total_results": len(data),
+                    "data": data,
+                })
+            except Exception as e:
+                print(f"[{task_id}] ❌  Error: {e}")
+                return JSONResponse({
+                    "success": False,
+                    "error": str(e),
+                }, status_code=500)
+    else:
+        # Non-proxy user: antri + cooldown (berbagi Railway IP)
+        async with SCRAPE_LOCK:
+            elapsed = time_mod.time() - _last_scrape_time
+            if elapsed < COOLDOWN_SECONDS:
+                wait = COOLDOWN_SECONDS - elapsed
+                print(f"[{task_id}] ⏳  Cooldown: tunggu {wait:.1f}s...")
+                await aio.sleep(wait)
 
-        # ── Filter field yang dipilih saja ────────────────────────
-        if set(selected_fields) != {"nama_usaha", "nomor_hp", "alamat", "website"}:
-            data = [{k: v for k, v in row.items() if k in selected_fields} for row in data]
-            print(f"[{task_id}] ✂️  Difilter ke field: {', '.join(selected_fields)}")
+            try:
+                print(f"[{task_id}] 🔍  Mencari: {keyword}")
+                lat, lng = detect_location(keyword)
+                print(f"[{task_id}] 📍  Lokasi: {lat}, {lng}")
+                data = await scrape_businesses_from_gmaps(keyword, max_scrolls, lat, lng)
+                print(f"[{task_id}] ✅  Dapat {len(data)} hasil")
 
-        return JSONResponse({
-            "success": True,
-            "task_id": task_id,
-            "keyword": keyword,
-            "total_results": len(data),
-            "data": data,
-        })
+                if set(selected_fields) != {"nama_usaha", "nomor_hp", "alamat", "website"}:
+                    data = [{k: v for k, v in row.items() if k in selected_fields} for row in data]
+                    print(f"[{task_id}] ✂️  Difilter ke field: {', '.join(selected_fields)}")
 
-    except Exception as e:
-        print(f"[{task_id}] ❌  Error: {e}")
-        return JSONResponse({
-            "success": False,
-            "error": str(e),
-        }, status_code=500)
+                return JSONResponse({
+                    "success": True,
+                    "task_id": task_id,
+                    "keyword": keyword,
+                    "total_results": len(data),
+                    "data": data,
+                })
+            except Exception as e:
+                print(f"[{task_id}] ❌  Error: {e}")
+                return JSONResponse({
+                    "success": False,
+                    "error": str(e),
+                }, status_code=500)
+            finally:
+                _last_scrape_time = time_mod.time()
 
-    finally:
-        pass
+
+@app.get("/api/queue-status")
+async def queue_status():
+    """Cek status antrian — dipakai frontend untuk tampilkan estimasi."""
+    now = time_mod.time()
+    cooldown_remaining = max(0, COOLDOWN_SECONDS - (now - _last_scrape_time))
+    return JSONResponse({
+        "locked": SCRAPE_LOCK.locked(),
+        "cooldown_remaining": round(cooldown_remaining, 1),
+        "cooldown_total": COOLDOWN_SECONDS,
+    })
 
 
 # ── Run ───────────────────────────────────────────────────────────────

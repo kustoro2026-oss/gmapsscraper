@@ -91,6 +91,7 @@ const params = new URLSearchParams(window.location.search);
 const keyword = params.get("keyword");
 const maxScrolls = parseInt(params.get("max_scrolls")) || 0;
 const fields = params.get("fields") || "nama_usaha,nomor_hp,alamat,website";
+const proxy = params.get("proxy") || "";
 
 if (!keyword) {
     // Tidak ada keyword — redirect ke landing page
@@ -234,6 +235,9 @@ function cariLagi() {
     formData.append("keyword", keyword);
     formData.append("max_scrolls", maxScrolls.toString());
     formData.append("fields", fields);
+    if (proxy) {
+        formData.append("proxy", proxy);
+    }
 
     try {
         const resp = await fetch("/api/scrape", {
