@@ -50,11 +50,11 @@ RUN playwright install-deps chromium
 # ── App code ──────────────────────────────────────────────────────
 COPY . .
 
+# Make start script executable
+RUN chmod +x start.sh
+
 # Railway uses PORT env var
 EXPOSE 8000
 
-# ── Launch: xvfb-run wraps python → Chromium render ke virtual display
-# -a : auto-select free display number
-# -s "-screen 0 1920x1080x24" : virtual screen 1920×1080, 24-bit color
-# --auto-servernum : cari display number yang available
-CMD ["xvfb-run", "-a", "-s", "-screen 0 1920x1080x24", "python", "app.py"]
+# ── Launch: start.sh → Xvfb :99 → Python app ────────────────────
+CMD ["./start.sh"]
