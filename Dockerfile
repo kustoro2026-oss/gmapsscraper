@@ -11,6 +11,7 @@ FROM python:3.11-slim
 # Chromium deps: library yang dibutuhkan Playwright untuk jalankan Chromium
 RUN apt-get update && apt-get install -y --no-install-recommends \
     xvfb \
+    xauth \
     libnss3 \
     libnspr4 \
     libdbus-1-3 \
