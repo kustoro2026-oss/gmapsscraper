@@ -34,6 +34,12 @@ for /d %%d in ("%USERPROFILE%\AppData\Local\ms-playwright\chromium-*") do (
     xcopy /e /i /q "%%d" "browsers\%%~nxd" >nul
 )
 
+REM Find Chromium headless shell in ms-playwright
+for /d %%d in ("%USERPROFILE%\AppData\Local\ms-playwright\chromium_headless_shell-*") do (
+    echo    Copying %%~nxd...
+    xcopy /e /i /q "%%d" "browsers\%%~nxd" >nul
+)
+
 REM Find ffmpeg in ms-playwright
 for /d %%d in ("%USERPROFILE%\AppData\Local\ms-playwright\ffmpeg-*") do (
     echo    Copying %%~nxd...
