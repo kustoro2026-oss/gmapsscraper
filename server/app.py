@@ -37,6 +37,15 @@ async def lifespan(app: FastAPI):
         print("   [LIFESPAN] Initializing database...")
         await init_db()
         print("   [LIFESPAN] Database init complete.")
+        # Add 'trial' to PackageType ENUM if not exists
+        async with engine.connect() as conn:
+            try:
+                await conn.execute(text("ALTER TYPE packagetype ADD VALUE 'trial'"))
+                await conn.commit()
+                print("   [LIFESPAN] Added 'trial' to packagetype ENUM")
+            except Exception:
+                await conn.rollback()
+                print("   [LIFESPAN] 'trial' already in packagetype ENUM (or skip)")
         # Auto-create first admin from ADMIN_EMAILS env
         async with engine.begin() as conn:
             for admin_email in ADMIN_EMAILS:
