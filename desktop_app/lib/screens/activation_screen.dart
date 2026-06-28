@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/api_service.dart';
 import 'home_screen.dart';
@@ -18,7 +19,8 @@ class _ActivationScreenState extends State<ActivationScreen> {
   final _keyController = TextEditingController();
   bool _loading = false;
   String? _error;
-  String? _quotaInfo;
+  String? _upgradeUrl;
+  bool _showUpgrade = false;
 
   @override
   void dispose() {
@@ -29,14 +31,18 @@ class _ActivationScreenState extends State<ActivationScreen> {
   Future<void> _activate() async {
     final key = _keyController.text.trim();
     if (key.isEmpty) {
-      setState(() => _error = 'Masukkan API key terlebih dahulu');
+      setState(() {
+        _error = 'Masukkan API key terlebih dahulu';
+        _showUpgrade = false;
+      });
       return;
     }
 
     setState(() {
       _loading = true;
       _error = null;
-      _quotaInfo = null;
+      _showUpgrade = false;
+      _upgradeUrl = null;
     });
 
     final result = await widget.apiService.checkLicense(key);
@@ -63,7 +69,19 @@ class _ActivationScreenState extends State<ActivationScreen> {
         ),
       );
     } else {
-      setState(() => _error = result.error ?? 'API key tidak valid');
+      setState(() {
+        _error = result.error ?? 'API key tidak valid';
+        _upgradeUrl = result.upgradeUrl;
+        _showUpgrade = result.upgradeUrl != null;
+      });
+    }
+  }
+
+  Future<void> _openUpgrade() async {
+    if (_upgradeUrl == null) return;
+    final uri = Uri.parse(_upgradeUrl!);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -98,11 +116,11 @@ class _ActivationScreenState extends State<ActivationScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              Text(
+              const Text(
                 'Professional Desktop Edition',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[400],
+                  color: Colors.grey,
                 ),
               ),
               const SizedBox(height: 40),
@@ -154,14 +172,38 @@ class _ActivationScreenState extends State<ActivationScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Aktivasi', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      : const Text('Aktivasi',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
               ),
-              const SizedBox(height: 16),
+
+              // Upgrade button (muncul jika license habis/diupgrade)
+              if (_showUpgrade) ...[
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: _openUpgrade,
+                    icon: const Icon(Icons.shopping_cart, size: 20),
+                    label: const Text('Beli / Upgrade Paket',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF22C55E),
+                      side: const BorderSide(color: Color(0xFF22C55E), width: 2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 20),
 
               // Info
               Text(
-                'Belum punya API key? Dapatkan di web dashboard.',
+                'Belum punya API key? Login di web dashboard.\nTrial gratis 10 quota langsung aktif.',
                 style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                 textAlign: TextAlign.center,
               ),

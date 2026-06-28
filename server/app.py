@@ -22,6 +22,11 @@ from auth import (
 )
 from duitku import create_invoice, verify_callback_signature, PACKAGES
 
+# ── Server URL ────────────────────────────────────────────────────
+
+SERVER_URL = os.environ.get("SERVER_URL", "https://gmapsscraper-production-36cd.up.railway.app")
+UPGRADE_URL = f"{SERVER_URL}/"
+
 
 # ── App Setup ─────────────────────────────────────────────────────
 
@@ -158,6 +163,19 @@ async def verify(email: str = Form(...), otp: str = Form(...), db: AsyncSession 
         db.add(api_key)
         await db.flush()
 
+    # Auto-create trial license untuk user baru (sekali saja)
+    trial_license = None
+    if is_new:
+        trial_license = License(
+            id=uuid.uuid4(),
+            user_id=user.id,
+            package=PackageType.trial,
+            total_quota=10,
+            max_scrolls=20,
+        )
+        db.add(trial_license)
+        await db.flush()
+
     token = create_token(str(user.id), user.role.value)
     return JSONResponse({
         "success": True,
@@ -170,6 +188,11 @@ async def verify(email: str = Form(...), otp: str = Form(...), db: AsyncSession 
             "is_new": is_new,
         },
         "api_key": api_key.key,
+        "trial": {
+            "active": trial_license is not None,
+            "quota_total": trial_license.total_quota if trial_license else 0,
+            "quota_remaining": (trial_license.total_quota - trial_license.used_quota) if trial_license else 0,
+        } if trial_license else None,
     })
 
 
@@ -260,23 +283,32 @@ async def desktop_status(
         return JSONResponse({
             "active": True,
             "quota_remaining": lic.total_quota - lic.used_quota,
+            "quota_total": lic.total_quota,
             "package": lic.package.value,
             "max_scrolls": lic.max_scrolls,
+            "is_trial": lic.package == PackageType.trial,
             "user_email": user.email,
+            "upgrade_url": UPGRADE_URL if lic.package == PackageType.trial else None,
         })
     elif lic and lic.used_quota >= lic.total_quota:
         return JSONResponse({
             "active": False,
             "quota_remaining": 0,
+            "quota_total": lic.total_quota,
             "package": lic.package.value,
-            "error": "Quota habis",
+            "is_trial": lic.package == PackageType.trial,
+            "error": "Quota habis. Silakan upgrade ke paket berbayar." if lic.package == PackageType.trial else "Quota habis. Silakan beli paket baru.",
+            "upgrade_url": UPGRADE_URL,
         })
     else:
         return JSONResponse({
             "active": False,
             "quota_remaining": 0,
+            "quota_total": 0,
             "package": None,
-            "error": "Tidak ada lisensi aktif",
+            "is_trial": False,
+            "error": "Tidak ada lisensi aktif. Silakan beli paket di dashboard.",
+            "upgrade_url": UPGRADE_URL,
         })
 
 

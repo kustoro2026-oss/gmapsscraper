@@ -9,10 +9,17 @@ class ApiService {
   ApiService({required this.baseUrl});
 
   /// Cek status license dari API key.
-  /// Return: (valid: bool, quotaRemaining: int, packageType: String, errorMsg: String?)
-  Future<({bool valid, int quotaRemaining, String packageType, String? error})> checkLicense(
-    String apiKey,
-  ) async {
+  Future<({
+    bool valid,
+    int quotaRemaining,
+    int quotaTotal,
+    int maxScrolls,
+    String packageType,
+    bool isTrial,
+    String? error,
+    String? upgradeUrl,
+    String? userEmail,
+  })> checkLicense(String apiKey) async {
     try {
       final resp = await http.get(
         Uri.parse('$baseUrl/api/desktop/status'),
@@ -24,24 +31,39 @@ class ApiService {
         return (
           valid: data['active'] == true,
           quotaRemaining: data['quota_remaining'] as int? ?? 0,
+          quotaTotal: data['quota_total'] as int? ?? 0,
+          maxScrolls: data['max_scrolls'] as int? ?? 10,
           packageType: data['package'] as String? ?? 'unknown',
+          isTrial: data['is_trial'] == true,
           error: null,
+          upgradeUrl: data['upgrade_url'] as String?,
+          userEmail: data['user_email'] as String?,
         );
       } else {
         final data = jsonDecode(resp.body);
         return (
           valid: false,
           quotaRemaining: 0,
+          quotaTotal: 0,
+          maxScrolls: 0,
           packageType: '',
+          isTrial: false,
           error: data['detail'] as String? ?? data['error'] as String? ?? 'Invalid API key',
+          upgradeUrl: data['upgrade_url'] as String?,
+          userEmail: null,
         );
       }
     } catch (e) {
       return (
         valid: false,
         quotaRemaining: 0,
+        quotaTotal: 0,
+        maxScrolls: 0,
         packageType: '',
+        isTrial: false,
         error: 'Connection failed: $e',
+        upgradeUrl: null,
+        userEmail: null,
       );
     }
   }

@@ -18,6 +18,7 @@ def utcnow():
 # ── Enums ──────────────────────────────────────────────────────────
 
 class PackageType(str, enum.Enum):
+    trial = "trial"
     starter = "starter"
     basic = "basic"
     pro = "pro"
