@@ -2,11 +2,11 @@
     "build": {
         "builder": "NIXPACKS",
         "nixpacksPlan": {
-            "startPhase": "/opt/venv/bin/python server/app.py"
+            "startPhase": "/opt/venv/bin/python -c \"from server.database import init_db, engine; import asyncio; asyncio.run(init_db()); print('DB init ok')\""
         }
     },
     "deploy": {
-        "startCommand": "/opt/venv/bin/python server/app.py",
+        "startCommand": "/opt/venv/bin/uvicorn server.app:app --host 0.0.0.0 --port ${PORT:-8080} --log-level info",
         "restartPolicyType": "ON_FAILURE"
     }
 }
