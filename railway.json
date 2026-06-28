@@ -1,9 +1,6 @@
 {
     "build": {
-        "builder": "NIXPACKS",
-        "nixpacksPlan": {
-            "startPhase": "/opt/venv/bin/python -c \"from server.database import init_db, engine; import asyncio; asyncio.run(init_db()); print('DB init ok')\""
-        }
+        "builder": "NIXPACKS"
     },
     "deploy": {
         "startCommand": "/opt/venv/bin/uvicorn server.app:app --host 0.0.0.0 --port ${PORT:-8080} --log-level info",
