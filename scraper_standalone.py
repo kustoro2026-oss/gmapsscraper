@@ -17,6 +17,17 @@ def _setup():
         if os.path.isdir(browsers_dir):
             os.environ['PLAYWRIGHT_BROWSERS_PATH'] = browsers_dir
 
+            # Explicitly find chrome-headless-shell.exe for faster launch
+            for root, dirs, files in os.walk(browsers_dir):
+                if 'chrome-headless-shell.exe' in files:
+                    exe_path = os.path.join(root, 'chrome-headless-shell.exe')
+                    os.environ['PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH'] = exe_path
+                    break
+                elif 'chrome.exe' in files:
+                    exe_path = os.path.join(root, 'chrome.exe')
+                    os.environ['PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH'] = exe_path
+                    break
+
         # On PyInstaller, we need to explicitly tell stdout to use utf-8
         if sys.stdout.encoding != 'utf-8':
             sys.stdout.reconfigure(encoding='utf-8', errors='replace')

@@ -178,12 +178,14 @@ async def scrape(keyword: str, max_scrolls: int = 10,
         print(f"PROGRESS:2:Meluncurkan browser...")
         browser = await p.chromium.launch(
             headless=True,  # HEADLESS — tanpa browser UI
+            timeout=120000,
             args=[
                 "--disable-blink-features=AutomationControlled",
                 "--disable-dev-shm-usage", "--no-sandbox",
                 "--disable-infobars", "--disable-setuid-sandbox",
                 "--no-first-run", "--no-default-browser-check",
                 "--ignore-certificate-errors",
+                "--disable-gpu",
             ]
         )
 
