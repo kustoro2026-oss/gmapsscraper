@@ -26,24 +26,33 @@ from duitku import create_invoice, verify_callback_signature, PACKAGES
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
-    # Auto-create first admin from ADMIN_EMAILS env
-    async with engine.begin() as conn:
-        for admin_email in ADMIN_EMAILS:
-            admin_email = admin_email.strip()
-            if not admin_email:
-                continue
-            result = await conn.execute(
-                text("SELECT id FROM users WHERE email = :email"), {"email": admin_email}
-            )
-            row = result.fetchone()
-            if not row:
-                new_id = uuid.uuid4()
-                await conn.execute(
-                    text("INSERT INTO users (id, email, role, is_banned) VALUES (:id, :email, 'admin', false)"),
-                    {"id": new_id, "email": admin_email},
+    import traceback as _tb
+    try:
+        print("   [LIFESPAN] Initializing database...")
+        await init_db()
+        print("   [LIFESPAN] Database init complete.")
+        # Auto-create first admin from ADMIN_EMAILS env
+        async with engine.begin() as conn:
+            for admin_email in ADMIN_EMAILS:
+                admin_email = admin_email.strip()
+                if not admin_email:
+                    continue
+                result = await conn.execute(
+                    text("SELECT id FROM users WHERE email = :email"), {"email": admin_email}
                 )
-                print(f"   [ADMIN CREATED] {admin_email}")
+                row = result.fetchone()
+                if not row:
+                    new_id = uuid.uuid4()
+                    await conn.execute(
+                        text("INSERT INTO users (id, email, role, is_banned) VALUES (:id, :email, 'admin', false)"),
+                        {"id": new_id, "email": admin_email},
+                    )
+                    print(f"   [ADMIN CREATED] {admin_email}")
+        print("   [LIFESPAN] Startup complete, ready to serve.")
+    except Exception:
+        print("   [LIFESPAN ERROR]")
+        _tb.print_exc()
+        raise
     yield
 
 
