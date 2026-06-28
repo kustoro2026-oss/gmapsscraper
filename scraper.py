@@ -435,7 +435,7 @@ async def scrape(keyword: str, max_scrolls: int = 10,
         await page.close()
 
         # ═══ PHASE 2: Extract detail ═══
-        CONCURRENCY = 4
+        CONCURRENCY = 10  # Buka 10 tab sekaligus — cepat
         semaphore = aio.Semaphore(CONCURRENCY)
         total = len(place_urls)
         results = [{} for _ in range(total)]  # Fix: jangan [{}]*total (semua referensi sama!)
@@ -445,8 +445,8 @@ async def scrape(keyword: str, max_scrolls: int = 10,
             nonlocal done_count
             async with semaphore:
                 try:
-                    jitter = random.uniform(1.5, 4.0)
-                    await aio.sleep(idx * random.uniform(0.3, 1.0) + jitter)
+                    jitter = random.uniform(0.5, 1.5)
+                    await aio.sleep(idx * random.uniform(0.1, 0.3) + jitter)
                     biz_page = await context.new_page()
                     await biz_page.route("**/*", resource_blocker)
                     try:
