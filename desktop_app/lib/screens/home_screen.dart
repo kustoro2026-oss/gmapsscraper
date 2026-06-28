@@ -346,17 +346,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: const Color(0xFF1E293B)),
                 ),
-                child: ListView.builder(
-                  itemCount: _logs.length,
-                  itemBuilder: (_, i) => Text(
-                    _logs[i],
-                    style: const TextStyle(
-                      color: Color(0xFF22C55E),
-                      fontSize: 11,
-                      fontFamily: 'monospace',
-                    ),
+                child: SingleChildScrollView(
+                child: SelectableText(
+                  _logs.join('\n'),
+                  style: const TextStyle(
+                    color: Color(0xFF22C55E),
+                    fontSize: 11,
+                    fontFamily: 'monospace',
                   ),
                 ),
+              ),
               ),
             ],
           ],
