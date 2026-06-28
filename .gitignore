@@ -39,3 +39,8 @@ saved_results/
 
 # Server env
 server/.env
+
+# PyInstaller build artifacts
+browsers/
+*.spec
+

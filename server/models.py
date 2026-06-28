@@ -44,7 +44,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     name = Column(String(255), nullable=True)
     role = Column(SAEnum(UserRole), default=UserRole.user, nullable=False)
-    is_banned = Column(Boolean, default=False, nullable=False)
+    is_banned = Column(Boolean, default=False, server_default=text('false'), nullable=False)
     banned_reason = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=utcnow)
 

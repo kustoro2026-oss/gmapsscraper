@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI):
             if not row:
                 new_id = uuid.uuid4()
                 await conn.execute(
-                    text("INSERT INTO users (id, email, role) VALUES (:id, :email, 'admin')"),
+                    text("INSERT INTO users (id, email, role, is_banned) VALUES (:id, :email, 'admin', false)"),
                     {"id": new_id, "email": admin_email},
                 )
                 print(f"   [ADMIN CREATED] {admin_email}")
