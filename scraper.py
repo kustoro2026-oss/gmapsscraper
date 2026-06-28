@@ -79,71 +79,187 @@ from city_coords import detect_location, DEFAULT_COORDS
 # ── DOM Extraction ──────────────────────────────────────────────────
 
 async def extract_business_info(page) -> dict:
-    """Ekstrak nama, HP, alamat, website dari halaman detail GMaps."""
+    """Ekstrak nama, HP, alamat, website, rating dari halaman detail GMaps.
+    Precision-focused: targeted selectors, no loose regex scanning."""
+
+    # Tunggu konten utama load
+    try:
+        await page.wait_for_selector('h1', timeout=8000)
+    except Exception:
+        pass
+    await page.wait_for_timeout(random.randint(2000, 4000))
+
     data = await page.evaluate("""
         () => {
-            const result = {nama_usaha: '', nomor_hp: '', alamat: '', website: ''};
+            const result = {nama_usaha: '', nomor_hp: '', alamat: '', website: '', rating: ''};
+
+            // ═══ NAMA USAHA ═══
             const h1 = document.querySelector('h1');
             if (h1) {
                 let name = h1.textContent.trim();
-                name = name.replace(/[★☆\\d.]+\\s*\\(?\\d+[\\.\\,]?\\d*\\s*ribu?\\s*ulasan?\\)?.*$/i, '').trim();
+                // Remove rating suffix: "4.5 (1.234)", "★4.5 (1rb)", "4,5 (1.234 ulasan)"
+                name = name.replace(/[\\s]*[★☆]?\\s*\\d+[.,]\\d*\\s*\\(?\\d+[.,]?\\d*\\s*(ribu|rb)?\\s*(ulasan|reviews?|review)?\\)?\\s*$/gi, '').trim();
+                name = name.replace(/\\s*·\\s*$/, '').trim();
                 result.nama_usaha = name;
             }
             if (!result.nama_usaha) {
-                result.nama_usaha = document.title.replace(/ - Google Maps.*$/, '').trim();
+                result.nama_usaha = document.title.replace(/\\s*·\\s*Google Maps$/g, '').replace(/\\s*-\\s*Google Maps$/g, '').trim();
             }
 
-            const buttons = [...document.querySelectorAll('button')];
-            const phoneRegex = /(\\+?62|0)[\\s\\-.]?\\d{2,4}[\\s\\-.]?\\d{3,4}[\\s\\-.]?\\d{3,4}/;
-            const generalPhone = /[\\d\\s\\-\\+\\(\\)\\.]{7,20}/;
-            const webRegex = /https?:\\/\\/[^\\s]+/;
-            const domainRegex = /[\\w\\-]+\\.(com|co\\.id|id|net|org|biz|io|store|site|online|web\\.id|my\\.id)(\\/[^\\s]*)?/i;
-
-            for (const btn of buttons) {
-                const text = (btn.textContent || '').trim();
-                const aria = (btn.getAttribute('aria-label') || '').trim();
-                const combined = text + ' ' + aria;
-
-                if (!result.nomor_hp) {
-                    let m = combined.match(phoneRegex) || combined.match(generalPhone);
+            // ═══ RATING ═══
+            const ratingSelectors = [
+                'div.fontDisplayLarge',
+                'span[aria-hidden="true"].fontBodyMedium',
+                '[role="img"][aria-label*="bintang"]',
+                '[role="img"][aria-label*="star"]',
+                'div.fontDisplayLarge span',
+            ];
+            for (const sel of ratingSelectors) {
+                const el = document.querySelector(sel);
+                if (el) {
+                    const text = (el.textContent || el.getAttribute('aria-label') || '').trim();
+                    const m = text.match(/(\\d+[.,]\\d+)/);
                     if (m) {
-                        let phone = m[0].trim().replace(/\\s+/g, ' ');
-                        if (phone.replace(/[^\\d]/g, '').length >= 8) result.nomor_hp = phone;
+                        const val = parseFloat(m[1].replace(',', '.'));
+                        if (val > 0 && val <= 5.0) {
+                            result.rating = m[1].replace(',', '.');
+                            break;
+                        }
                     }
                 }
-                if (!result.website) {
-                    let m = combined.match(webRegex) || combined.match(domainRegex);
-                    if (m) result.website = m[0].trim();
-                    const link = btn.querySelector('a[href*="http"]');
-                    if (link && !result.website) result.website = link.href;
-                }
             }
-
-            if (!result.nomor_hp || !result.website) {
+            // Fallback: rating text near stars
+            if (!result.rating) {
                 const allText = document.body.innerText;
-                if (!result.nomor_hp) { const m = allText.match(phoneRegex); if (m) result.nomor_hp = m[0].trim(); }
-                if (!result.website) { const m = allText.match(webRegex); if (m) result.website = m[0].trim(); }
-            }
-
-            let bestAddr = '';
-            for (const btn of buttons) {
-                const text = (btn.textContent || '').trim();
-                const aria = (btn.getAttribute('aria-label') || '').trim();
-                const candidate = aria || text;
-                if (candidate.length < 8) continue;
-                if (/^(telp|telepon|phone|call|website|buka|tutup|simpan|bagikan|kirim|rute|arahkan)/i.test(candidate)) continue;
-                if (phoneRegex.test(candidate) || webRegex.test(candidate)) continue;
-                if (candidate === result.nama_usaha) continue;
-                if (candidate.includes(',') || /J(l|alan)\\b/i.test(candidate) || candidate.length > 20) {
-                    if (candidate.length > bestAddr.length) bestAddr = candidate;
+                const m = allText.match(/(\\d+[.,]\\d+)\\s*\\(\\d+[.,]?\\d*\\s*(ribu|rb)?\\s*(ulasan|reviews?)?\\)/);
+                if (m) {
+                    const val = parseFloat(m[1].replace(',', '.'));
+                    if (val <= 5.0) result.rating = m[1].replace(',', '.');
                 }
             }
-            if (bestAddr && !result.alamat) result.alamat = bestAddr;
 
-            if (!result.alamat) {
-                const addrEl = document.querySelector('[data-tooltip*="alamat"], [data-tooltip*="address"], [aria-label*="alamat"], [aria-label*="address"]');
-                if (addrEl) result.alamat = (addrEl.getAttribute('aria-label') || addrEl.textContent || '').trim();
+            // ═══ NOMOR HP — PRECISION: hanya dari tombol Telepon ═══
+            const phoneKeywords = ['telepon', 'phone', 'nomor telepon', 'call', 'telp', 'no. telp', 'no telp', 'no. hp', 'nomer telepon', 'nomor hp', 'salin nomor'];
+            const allButtons = [...document.querySelectorAll('button')];
+
+            // Indonesian phone patterns
+            const phonePatterns = [
+                /(?:\\+?62|0)[\\s\\-.]?\\d{2,4}[\\s\\-.]?\\d{3,4}[\\s\\-.]?\\d{3,5}/g,
+                /\\(?0\\d{2,3}\\)?[\\s\\-.]?\\d{3,4}[\\s\\-.]?\\d{3,5}/g,
+                /\\(?\\+62\\d{2,3}\\)?[\\s\\-.]?\\d{3,4}[\\s\\-.]?\\d{3,5}/g,
+            ];
+
+            // STEP 1: ONLY from phone-labeled buttons
+            for (const btn of allButtons) {
+                const aria = (btn.getAttribute('aria-label') || '').trim();
+                const text = (btn.textContent || '').trim();
+                const combined = (aria + ' ' + text).toLowerCase();
+
+                if (phoneKeywords.some(kw => combined.includes(kw))) {
+                    // Try patterns
+                    for (const pat of phonePatterns) {
+                        const m = (aria + ' ' + text).match(pat);
+                        if (m) {
+                            let phone = m[0].trim();
+                            const digits = phone.replace(/\\D/g, '');
+                            if (digits.length >= 8 && digits.length <= 15) {
+                                result.nomor_hp = phone;
+                                break;
+                            }
+                        }
+                    }
+                    if (result.nomor_hp) break;
+                    // Fallback: clean text might be the phone
+                    const digits = text.replace(/\\D/g, '');
+                    if (digits.length >= 8 && digits.length <= 15) {
+                        result.nomor_hp = text.trim();
+                        break;
+                    }
+                }
             }
+
+            // STEP 2: Fallback — known phone selectors
+            if (!result.nomor_hp) {
+                const phoneSelectors = [
+                    'button[data-item-id="phone"]',
+                    'a[href^="tel:"]',
+                    '[data-phone-number]',
+                    'button[aria-label*="Telepon"]',
+                    'button[aria-label*="telepon"]',
+                    'button[aria-label*="phone"] i',
+                    'button[aria-label*="Phone"]',
+                ];
+                for (const sel of phoneSelectors) {
+                    const el = document.querySelector(sel);
+                    if (el) {
+                        const raw = el.getAttribute('data-phone-number') ||
+                                    el.getAttribute('href') ||
+                                    el.textContent || '';
+                        const digits = raw.replace(/\\D/g, '');
+                        if (digits.length >= 8 && digits.length <= 15) {
+                            result.nomor_hp = raw.replace('tel:', '').trim();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // ═══ WEBSITE ═══
+            const webKeywords = ['website', 'situs', 'situs web', 'web', 'halaman web'];
+            for (const btn of allButtons) {
+                const aria = (btn.getAttribute('aria-label') || '').toLowerCase();
+                const text = (btn.textContent || '').toLowerCase();
+
+                if (webKeywords.some(kw => aria.includes(kw)) || text.startsWith('http')) {
+                    const link = btn.querySelector('a[href*="http"]');
+                    if (link) { result.website = link.href; break; }
+                    const m = (aria + ' ' + text).match(/https?:\\/\\/[^\\s)\\]]+/);
+                    if (m) { result.website = m[0]; break; }
+                    // Domain-only fallback
+                    const dm = text.match(/[\\w\\-]+\\.[\\w\\-]+\\.(com|co\\.id|id|net|org|biz|io|store|site|online|web\\.id|my\\.id)(\\/[^\\s]*)?/i);
+                    if (dm) { result.website = dm[0]; break; }
+                }
+            }
+            if (!result.website) {
+                const webBtn = document.querySelector('a[data-tooltip*="website"], a[aria-label*="website"], a[aria-label*="Website"], a[aria-label*="Situs"], a[data-item-id="authority"]');
+                if (webBtn) result.website = webBtn.href;
+            }
+
+            // ═══ ALAMAT — targeted selectors ═══
+            const addressSelectors = [
+                'button[data-item-id="address"]',
+                'button[aria-label*="alamat"]',
+                'button[aria-label*="Alamat"]',
+                'button[aria-label*="address"]',
+                'button[aria-label*="Address"]',
+            ];
+            for (const sel of addressSelectors) {
+                const btn = document.querySelector(sel);
+                if (btn) {
+                    const addr = (btn.getAttribute('aria-label') || btn.textContent || '').trim();
+                    if (addr.length > 5) { result.alamat = addr; break; }
+                }
+            }
+
+            // Fallback: find address in remaining buttons
+            if (!result.alamat) {
+                const phonePattern = /(?:\\+?62|0)[\\s\\-.]?\\d/;
+                let best = '';
+                for (const btn of allButtons) {
+                    const aria = (btn.getAttribute('aria-label') || '').trim();
+                    const text = (btn.textContent || '').trim();
+                    const candidate = aria || text;
+                    if (candidate.length < 10) continue;
+                    const low = candidate.toLowerCase();
+                    if (/telepon|phone|website|situs|simpan|save|bagikan|share|kirim|send|rute|direction|buka jam|tutup|jam operasional/i.test(low)) continue;
+                    if (phonePattern.test(candidate)) continue;
+                    if (candidate.includes(',') || /jalan|jl\\.|jl\\s|no\\.?\\s*\\d|blok|rt[\\s/]rw|kecamatan|kelurahan|kabupaten|provinsi/i.test(low) || candidate.length > 30) {
+                        if (candidate.length > best.length) best = candidate;
+                    }
+                }
+                if (best) result.alamat = best;
+            }
+
             return result;
         }
     """)
@@ -157,7 +273,7 @@ async def scrape(keyword: str, max_scrolls: int = 10,
                  fields: list[str] = None) -> list[dict]:
     """Scrape Google Maps — return list of business results."""
     if fields is None:
-        fields = ["nama_usaha", "nomor_hp", "alamat", "website"]
+        fields = ["nama_usaha", "nomor_hp", "alamat", "website", "rating"]
 
     city_name = keyword
     if lat is None or lng is None:
@@ -322,7 +438,7 @@ async def scrape(keyword: str, max_scrolls: int = 10,
         CONCURRENCY = 4
         semaphore = aio.Semaphore(CONCURRENCY)
         total = len(place_urls)
-        results = [{}] * total
+        results = [{} for _ in range(total)]  # Fix: jangan [{}]*total (semua referensi sama!)
         done_count = 0
 
         async def process_one(idx: int, biz_url: str):
@@ -350,7 +466,7 @@ async def scrape(keyword: str, max_scrolls: int = 10,
                     finally:
                         await biz_page.close()
                 except Exception as e:
-                    results[idx] = {"nama_usaha": "", "nomor_hp": "", "alamat": "", "website": ""}
+                    results[idx] = {"nama_usaha": "", "nomor_hp": "", "alamat": "", "website": "", "rating": ""}
                     done_count += 1
                     prog_pct = 75 + int((done_count / total) * 20)
                     print(f"PROGRESS:{prog_pct}:[{done_count}/{total}] Gagal: {e}")
@@ -358,11 +474,11 @@ async def scrape(keyword: str, max_scrolls: int = 10,
         tasks = [process_one(i, url) for i, url in enumerate(place_urls)]
         await aio.gather(*tasks)
 
-        results = [r if r else {"nama_usaha": "", "nomor_hp": "", "alamat": "", "website": ""} for r in results]
+        results = [r if r else {"nama_usaha": "", "nomor_hp": "", "alamat": "", "website": "", "rating": ""} for r in results]
         await browser.close()
 
     # ── Filter fields ──
-    if set(fields) != {"nama_usaha", "nomor_hp", "alamat", "website"}:
+    if set(fields) != {"nama_usaha", "nomor_hp", "alamat", "website", "rating"}:
         results = [{k: v for k, v in row.items() if k in fields} for row in results]
 
     print(f"PROGRESS:100:Selesai — {len(results)} hasil")
@@ -396,8 +512,8 @@ def main():
     )
     parser.add_argument("--keyword", "-k", required=True, help="Kata kunci pencarian")
     parser.add_argument("--max-scrolls", "-s", type=int, default=10, help="Jumlah scroll (default: 10)")
-    parser.add_argument("--fields", "-f", default="nama_usaha,nomor_hp,alamat,website",
-                        help="Field yang diekstrak, comma-separated (default: nama_usaha,nomor_hp,alamat,website)")
+    parser.add_argument("--fields", "-f", default="nama_usaha,nomor_hp,alamat,website,rating",
+                        help="Field yang diekstrak, comma-separated (default: nama_usaha,nomor_hp,alamat,website,rating)")
     parser.add_argument("--output", "-o", required=True, help="File output (.csv atau .json)")
     parser.add_argument("--lat", type=float, default=None, help="Latitude manual")
     parser.add_argument("--lng", type=float, default=None, help="Longitude manual")
@@ -427,7 +543,7 @@ def main():
     # Print summary ke stdout
     for i, r in enumerate(results):
         if r.get("nama_usaha"):
-            print(f"DATA:{i}:{r.get('nama_usaha','')}|{r.get('nomor_hp','')}|{r.get('alamat','')}|{r.get('website','')}")
+            print(f"DATA:{i}:{r.get('nama_usaha','')}|{r.get('nomor_hp','')}|{r.get('alamat','')}|{r.get('website','')}|{r.get('rating','')}")
 
 
 if __name__ == "__main__":
