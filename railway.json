@@ -3,7 +3,7 @@
         "builder": "NIXPACKS"
     },
     "deploy": {
-        "startCommand": "cd /app/server && /opt/venv/bin/uvicorn app:app --host 0.0.0.0 --port ${PORT:-8080} --log-level info",
+        "startCommand": "cd /app/server && /opt/venv/bin/python test_minimal.py",
         "restartPolicyType": "ON_FAILURE"
     }
 }
