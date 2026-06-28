@@ -65,18 +65,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Auto-detect scraper.exe (production) atau scraper.py (dev).
-  /// Priority: shared_prefs → exe dir → assets dir → manual pick.
+  /// Priority: bundle (exe dir) → dev py → saved prefs → assets → manual.
   Future<void> _autoDetectScraper() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // 1. Cek shared_preferences
-    final savedPath = prefs.getString('scraper_path');
-    if (savedPath != null && File(savedPath).existsSync()) {
-      setState(() => _scraperPath = savedPath);
-      return;
-    }
-
-    // 2. Cek folder exe — production: scraper.exe (PyInstaller bundle)
+    // 1. Cek folder exe — production: scraper.exe (PyInstaller bundle)
+    //    PRIORITAS UTAMA untuk end-user: selalu pakai yang di samping .exe
     final exeDir = File(Platform.resolvedExecutable).parent;
     final bundleExe = File('${exeDir.path}${Platform.pathSeparator}scraper${Platform.pathSeparator}scraper.exe');
     if (bundleExe.existsSync()) {
@@ -85,11 +79,18 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    // 3. Cek scraper.py di folder exe (dev mode)
+    // 2. Cek scraper.py di folder exe (dev mode)
     final exePy = File('${exeDir.path}${Platform.pathSeparator}scraper.py');
     if (exePy.existsSync()) {
       setState(() => _scraperPath = exePy.path);
       await prefs.setString('scraper_path', exePy.path);
+      return;
+    }
+
+    // 3. Fallback: cek shared_preferences (user manual pick sebelumnya)
+    final savedPath = prefs.getString('scraper_path');
+    if (savedPath != null && File(savedPath).existsSync()) {
+      setState(() => _scraperPath = savedPath);
       return;
     }
 
