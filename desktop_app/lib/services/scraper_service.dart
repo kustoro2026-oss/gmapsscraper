@@ -45,17 +45,21 @@ class ScraperService {
     if (lng != null) commonArgs.addAll(['--lng', lng.toString()]);
 
     late final Process process;
+    // Python stdout buffering fix — force flush every line
+    final env = Map<String, String>.from(Platform.environment);
+    env['PYTHONUNBUFFERED'] = '1';
+
     if (_isExe) {
       // Production: run scraper.exe directly (bundle includes Python + Playwright + Chromium)
       final args = [scraperPath, ...commonArgs];
       onLog?.call('[CMD] ${args.first} ${args.skip(1).join(' ')}');
-      process = await Process.start(scraperPath, commonArgs, workingDirectory: scraperDir);
+      process = await Process.start(scraperPath, commonArgs, workingDirectory: scraperDir, environment: env);
     } else {
       // Development: run with python
       final pythonExe = 'python';
       final args = [scraperPath, ...commonArgs];
       onLog?.call('[CMD] $pythonExe ${args.join(' ')}');
-      process = await Process.start(pythonExe, args, workingDirectory: scraperDir);
+      process = await Process.start(pythonExe, args, workingDirectory: scraperDir, environment: env);
     }
 
     // Parse stdout untuk PROGRESS: lines
