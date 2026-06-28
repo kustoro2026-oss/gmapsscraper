@@ -545,8 +545,10 @@ async def admin_transactions(
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8000))
+    port_raw = os.environ.get("PORT", "8080")
+    port = int(port_raw)
     print("=" * 55)
     print(f"  GMaps Scraper License Server — http://0.0.0.0:{port}")
+    print(f"  PORT env = {port_raw!r}")
     print("=" * 55)
     uvicorn.run(app, host="0.0.0.0", port=port)
