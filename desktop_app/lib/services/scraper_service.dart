@@ -71,6 +71,9 @@ class ScraperService {
             final detail = parts.sublist(1).join(':').trim();
             if (pct != null) onProgress?.call(pct, detail);
           }
+          onLog?.call(trimmed);
+        } else if (trimmed.startsWith('RESULT:') || trimmed.startsWith('DATA:')) {
+          // Skip internal data lines
         } else {
           onLog?.call(trimmed);
         }
