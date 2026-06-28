@@ -1,11 +1,48 @@
-"""Minimal FastAPI + CORS + StaticFiles — isolate 502 to specific component."""
+"""Step 3: FastAPI + CORS + StaticFiles + Database + Lifespan."""
 import os
+import uuid
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
-app = FastAPI(title="GMaps Scraper — Minimal+CORS+Static")
+from database import init_db, engine
+from models import User
+from auth import ADMIN_EMAILS
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    import traceback as _tb
+    try:
+        print("   [LIFESPAN] Init DB...")
+        await init_db()
+        print("   [LIFESPAN] DB ok, creating admin...")
+        async with engine.begin() as conn:
+            for admin_email in ADMIN_EMAILS:
+                admin_email = admin_email.strip()
+                if not admin_email:
+                    continue
+                result = await conn.execute(
+                    text("SELECT id FROM users WHERE email = :email"), {"email": admin_email}
+                )
+                if not result.fetchone():
+                    await conn.execute(
+                        text("INSERT INTO users (id, email, role, is_banned) VALUES (:id, :email, 'admin', false)"),
+                        {"id": uuid.uuid4(), "email": admin_email},
+                    )
+                    print(f"   [ADMIN] {admin_email}")
+        print("   [LIFESPAN] Ready.")
+    except Exception:
+        print("   [LIFESPAN ERROR]")
+        _tb.print_exc()
+        raise
+    yield
+
+
+app = FastAPI(title="GMaps Scraper — DB", lifespan=lifespan)
 
 # CORS
 app.add_middleware(
@@ -29,4 +66,4 @@ async def health():
 
 @app.get("/")
 async def root():
-    return JSONResponse({"status": "ok", "message": "FastAPI + CORS + Static"})
+    return JSONResponse({"status": "ok", "message": "FastAPI + CORS + Static + DB"})
