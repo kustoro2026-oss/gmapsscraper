@@ -68,10 +68,12 @@ app.add_middleware(
 
 # Static files
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.dirname(BASE_DIR)  # parent of server/
 templates_dir = os.path.join(BASE_DIR, "templates")
-static_dir = os.path.join(ROOT_DIR, "static")
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
+static_dir = os.path.join(BASE_DIR, "static")
+if not os.path.isdir(static_dir):
+    print(f"   [WARN] Static dir not found: {static_dir}, skipping mount")
+else:
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
 # ── Health Check ──────────────────────────────────────────────────
