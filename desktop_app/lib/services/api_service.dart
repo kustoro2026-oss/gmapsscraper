@@ -15,7 +15,7 @@ class ApiService {
   ) async {
     try {
       final resp = await http.get(
-        Uri.parse('$baseUrl/api/license/status'),
+        Uri.parse('$baseUrl/api/desktop/status'),
         headers: {'Authorization': 'Bearer $apiKey'},
       ).timeout(const Duration(seconds: 10));
 
@@ -33,7 +33,7 @@ class ApiService {
           valid: false,
           quotaRemaining: 0,
           packageType: '',
-          error: data['detail'] as String? ?? 'Invalid API key',
+          error: data['detail'] as String? ?? data['error'] as String? ?? 'Invalid API key',
         );
       }
     } catch (e) {
@@ -50,7 +50,7 @@ class ApiService {
   Future<bool> useQuota(String apiKey) async {
     try {
       final resp = await http.post(
-        Uri.parse('$baseUrl/api/license/use'),
+        Uri.parse('$baseUrl/api/desktop/use'),
         headers: {'Authorization': 'Bearer $apiKey'},
       ).timeout(const Duration(seconds: 5));
 

@@ -18,6 +18,7 @@ from auth import (
     create_token, decode_token, generate_otp, verify_otp,
     get_current_user, get_admin_user, get_license_for_user,
     ADMIN_EMAILS, bearer_scheme,
+    get_user_by_api_key, get_license_by_api_key,
 )
 from duitku import create_invoice, verify_callback_signature, PACKAGES
 
@@ -218,6 +219,76 @@ async def use_quota(
         "success": True,
         "remaining": remaining,
         "package": license.package.value,
+    })
+
+
+# ══════════════════════════════════════════════════════════════════
+#  DESKTOP APP ROUTES (API Key auth)
+# ══════════════════════════════════════════════════════════════════
+
+@app.get("/api/desktop/status")
+async def desktop_status(
+    user: User = Depends(get_user_by_api_key),
+    db: AsyncSession = Depends(get_db),
+):
+    """Cek status lisensi via API key (untuk Desktop App)."""
+    result = await db.execute(
+        select(License)
+        .where(License.user_id == user.id, License.is_active == True)
+        .order_by(License.created_at.desc())
+        .limit(1)
+    )
+    lic = result.scalar_one_or_none()
+
+    if lic and lic.used_quota < lic.total_quota:
+        return JSONResponse({
+            "active": True,
+            "quota_remaining": lic.total_quota - lic.used_quota,
+            "package": lic.package.value,
+            "max_scrolls": lic.max_scrolls,
+            "user_email": user.email,
+        })
+    elif lic and lic.used_quota >= lic.total_quota:
+        return JSONResponse({
+            "active": False,
+            "quota_remaining": 0,
+            "package": lic.package.value,
+            "error": "Quota habis",
+        })
+    else:
+        return JSONResponse({
+            "active": False,
+            "quota_remaining": 0,
+            "package": None,
+            "error": "Tidak ada lisensi aktif",
+        })
+
+
+@app.post("/api/desktop/use")
+async def desktop_use_quota(
+    lic: License = Depends(get_license_by_api_key),
+    db: AsyncSession = Depends(get_db),
+    keyword: str = Form(""),
+    results_count: int = Form(0),
+):
+    """Kurangi 1 quota via API key (untuk Desktop App)."""
+    lic.used_quota += 1
+
+    log = UsageLog(
+        id=uuid.uuid4(),
+        user_id=lic.user_id,
+        license_id=lic.id,
+        keyword=keyword[:255] if keyword else None,
+        results_count=results_count,
+    )
+    db.add(log)
+    await db.flush()
+
+    remaining = lic.total_quota - lic.used_quota
+    return JSONResponse({
+        "success": True,
+        "remaining": remaining,
+        "package": lic.package.value,
     })
 
 

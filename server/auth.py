@@ -5,7 +5,7 @@ import uuid
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -132,3 +132,62 @@ async def get_api_key_for_user(
     if not key:
         raise HTTPException(status_code=401, detail="API key tidak ditemukan")
     return key
+
+
+# ── Desktop App Auth (API Key instead of JWT) ───────────────────
+
+async def get_user_by_api_key(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Auth via API key in Authorization: Bearer <api_key> or X-API-Key header."""
+    api_key_raw: str | None = None
+
+    # Try Authorization: Bearer <key>
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        api_key_raw = auth_header[7:].strip()
+
+    # Fallback: X-API-Key header
+    if not api_key_raw:
+        api_key_raw = request.headers.get("X-API-Key", "").strip()
+
+    if not api_key_raw:
+        raise HTTPException(status_code=401, detail="API key dibutuhkan")
+
+    # Look up API key
+    result = await db.execute(
+        select(ApiKey).where(ApiKey.key == api_key_raw, ApiKey.is_active == True)
+    )
+    api_key = result.scalar_one_or_none()
+    if not api_key:
+        raise HTTPException(status_code=401, detail="API key tidak valid")
+
+    # Get user
+    user = await db.scalar(select(User).where(User.id == api_key.user_id))
+    if not user:
+        raise HTTPException(status_code=401, detail="User tidak ditemukan")
+    if user.is_banned:
+        raise HTTPException(status_code=403, detail="Akun dibanned")
+
+    return user
+
+
+async def get_license_by_api_key(
+    user: User = Depends(get_user_by_api_key),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return active license for desktop app user (auth via API key)."""
+    from models import License
+    result = await db.execute(
+        select(License)
+        .where(License.user_id == user.id, License.is_active == True)
+        .order_by(License.created_at.desc())
+        .limit(1)
+    )
+    lic = result.scalar_one_or_none()
+    if not lic:
+        raise HTTPException(status_code=402, detail="Tidak ada lisensi aktif. Silakan beli paket.")
+    if lic.used_quota >= lic.total_quota:
+        raise HTTPException(status_code=402, detail="Quota habis. Silakan beli paket baru.")
+    return lic
