@@ -64,7 +64,10 @@ class _ActivationScreenState extends State<ActivationScreen> {
             apiKey: key,
             apiService: widget.apiService,
             quotaRemaining: result.quotaRemaining,
+            quotaTotal: result.quotaTotal,
             packageType: result.packageType,
+            isTrial: result.isTrial,
+            userEmail: result.userEmail,
           ),
         ),
       );
@@ -88,11 +91,13 @@ class _ActivationScreenState extends State<ActivationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF0A0E17),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(32),
-          child: Column(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               // Logo / icon
@@ -208,6 +213,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
                 textAlign: TextAlign.center,
               ),
             ],
+            ),
           ),
         ),
       ),

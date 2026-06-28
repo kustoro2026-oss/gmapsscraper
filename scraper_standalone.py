@@ -9,6 +9,14 @@ import os
 
 def _setup():
     """Setup environment BEFORE any Playwright import."""
+    # CRITICAL: force stdout line-buffering for piped Process.start()
+    # Without this, Flutter sees no output until process exits
+    if hasattr(sys.stdout, 'reconfigure'):
+        try:
+            sys.stdout.reconfigure(line_buffering=True)
+        except Exception:
+            pass
+
     if getattr(sys, 'frozen', False):
         bundle_dir = sys._MEIPASS
 
@@ -28,7 +36,7 @@ def _setup():
                     os.environ['PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH'] = exe_path
                     break
 
-        # On PyInstaller, we need to explicitly tell stdout to use utf-8
+        # On PyInstaller, ensure stdout uses utf-8
         if sys.stdout.encoding != 'utf-8':
             sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 

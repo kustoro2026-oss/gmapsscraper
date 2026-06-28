@@ -75,7 +75,10 @@ class _AppLoaderState extends State<AppLoader> {
               apiKey: savedKey,
               apiService: _apiService,
               quotaRemaining: result.quotaRemaining,
+              quotaTotal: result.quotaTotal,
               packageType: result.packageType,
+              isTrial: result.isTrial,
+              userEmail: result.userEmail,
             ),
           ),
         );

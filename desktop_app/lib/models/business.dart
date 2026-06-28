@@ -5,9 +5,6 @@ class Business {
   final String alamat;
   final String website;
   final String rating;
-  final String totalReview;
-  final String googleMapsUrl;
-  final String category;
 
   const Business({
     required this.namaUsaha,
@@ -15,9 +12,6 @@ class Business {
     required this.alamat,
     required this.website,
     required this.rating,
-    required this.totalReview,
-    required this.googleMapsUrl,
-    required this.category,
   });
 
   factory Business.fromCsvRow(List<dynamic> row) {
@@ -27,14 +21,11 @@ class Business {
       alamat: row.length > 2 ? row[2].toString().trim() : '',
       website: row.length > 3 ? row[3].toString().trim() : '',
       rating: row.length > 4 ? row[4].toString().trim() : '',
-      totalReview: row.length > 5 ? row[5].toString().trim() : '',
-      googleMapsUrl: row.length > 6 ? row[6].toString().trim() : '',
-      category: row.length > 7 ? row[7].toString().trim() : '',
     );
   }
 
   List<String> toRow() {
-    return [namaUsaha, nomorHp, alamat, website, rating, totalReview, googleMapsUrl, category];
+    return [namaUsaha, nomorHp, alamat, website, rating];
   }
 
   static const List<String> headers = [
@@ -43,8 +34,5 @@ class Business {
     'Alamat',
     'Website',
     'Rating',
-    'Total Review',
-    'Google Maps URL',
-    'Kategori',
   ];
 }
