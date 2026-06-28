@@ -84,6 +84,22 @@ async def health():
     return {"status": "ok", "server": "GMaps Scraper License Server"}
 
 
+@app.get("/api/debug/apikey/{api_key}")
+async def debug_apikey(api_key: str, db: AsyncSession = Depends(get_db)):
+    """Debug endpoint: check if API key exists."""
+    result = await db.execute(
+        select(ApiKey).where(ApiKey.key == api_key)
+    )
+    key = result.scalar_one_or_none()
+    if not key:
+        return {"found": False, "api_key": api_key}
+    return {
+        "found": True,
+        "is_active": key.is_active,
+        "user_id": str(key.user_id),
+    }
+
+
 # ── HTML Page Routes ──────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)

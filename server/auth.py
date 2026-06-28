@@ -145,12 +145,15 @@ async def get_user_by_api_key(
 
     # Try Authorization: Bearer <key>
     auth_header = request.headers.get("Authorization", "")
+    print(f"[DEBUG get_user_by_api_key] auth_header = '{auth_header[:20]}...'")
     if auth_header.startswith("Bearer "):
         api_key_raw = auth_header[7:].strip()
 
     # Fallback: X-API-Key header
     if not api_key_raw:
         api_key_raw = request.headers.get("X-API-Key", "").strip()
+
+    print(f"[DEBUG get_user_by_api_key] api_key_raw = '{api_key_raw[:20] if api_key_raw else 'None'}...'")
 
     if not api_key_raw:
         raise HTTPException(status_code=401, detail="API key dibutuhkan")
@@ -160,11 +163,13 @@ async def get_user_by_api_key(
         select(ApiKey).where(ApiKey.key == api_key_raw, ApiKey.is_active == True)
     )
     api_key = result.scalar_one_or_none()
+    print(f"[DEBUG get_user_by_api_key] api_key found in DB = {api_key is not None}")
     if not api_key:
         raise HTTPException(status_code=401, detail="API key tidak valid")
 
     # Get user
     user = await db.scalar(select(User).where(User.id == api_key.user_id))
+    print(f"[DEBUG get_user_by_api_key] user = {user}")
     if not user:
         raise HTTPException(status_code=401, detail="User tidak ditemukan")
     if user.is_banned:
