@@ -1,4 +1,4 @@
-"""Step 3: FastAPI + CORS + StaticFiles + Database + Lifespan."""
+"""Step 4: Full imports, minimal routes — isolate 502."""
 import os
 import uuid
 from contextlib import asynccontextmanager
@@ -10,7 +10,12 @@ from sqlalchemy import text
 
 from database import init_db, engine
 from models import User
-from auth import ADMIN_EMAILS
+from auth import (
+    create_token, decode_token, generate_otp, verify_otp,
+    get_current_user, get_admin_user, get_license_for_user,
+    ADMIN_EMAILS, bearer_scheme,
+)
+from duitku import create_invoice, verify_callback_signature, PACKAGES
 
 
 @asynccontextmanager
@@ -42,7 +47,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="GMaps Scraper — DB", lifespan=lifespan)
+app = FastAPI(title="GMaps Scraper — Full Imports", lifespan=lifespan)
 
 # CORS
 app.add_middleware(
@@ -66,4 +71,4 @@ async def health():
 
 @app.get("/")
 async def root():
-    return JSONResponse({"status": "ok", "message": "FastAPI + CORS + Static + DB"})
+    return JSONResponse({"status": "ok", "message": "All imports OK"})
