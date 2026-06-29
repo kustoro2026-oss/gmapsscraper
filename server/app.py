@@ -720,25 +720,32 @@ async def payment_return():
 @app.get("/api/admin/stats")
 async def admin_stats(admin: User = Depends(get_admin_user), db: AsyncSession = Depends(get_db)):
     """Dashboard stats."""
-    total_users = await db.scalar(select(func.count(User.id)))
-    active_licenses = await db.scalar(
-        select(func.count(License.id)).where(License.is_active == True)
-    )
-    total_revenue = await db.scalar(
-        select(func.coalesce(func.sum(Transaction.amount), 0))
-        .where(Transaction.status == TransactionStatus.success)
-    )
-    today_usage = await db.scalar(
-        select(func.count(UsageLog.id))
-        .where(func.date(UsageLog.created_at) == func.current_date())
-    )
+    try:
+        total_users = await db.scalar(select(func.count(User.id)))
+        active_licenses = await db.scalar(
+            select(func.count(License.id)).where(License.is_active == True)
+        )
+        total_revenue = await db.scalar(
+            select(func.coalesce(func.sum(Transaction.amount), 0))
+            .where(Transaction.status == TransactionStatus.success)
+        )
+        today_usage = await db.scalar(
+            select(func.count(UsageLog.id))
+            .where(func.date(UsageLog.created_at) == func.current_date())
+        )
 
-    return JSONResponse({
-        "total_users": total_users,
-        "active_licenses": active_licenses,
-        "total_revenue": float(total_revenue or 0),
-        "today_usage": today_usage,
-    })
+        return JSONResponse({
+            "total_users": total_users,
+            "active_licenses": active_licenses,
+            "total_revenue": float(total_revenue or 0),
+            "today_usage": today_usage,
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ADMIN STATS ERROR] {e}")
+        import traceback as _tb; _tb.print_exc()
+        return JSONResponse({"detail": str(e)}, status_code=500)
 
 
 @app.get("/api/admin/users")
@@ -749,44 +756,51 @@ async def admin_users(
     search: str = "",
 ):
     """List users with pagination."""
-    per_page = 20
-    offset = (page - 1) * per_page
+    try:
+        per_page = 20
+        offset = (page - 1) * per_page
 
-    query = select(User).order_by(User.created_at.desc())
-    count_query = select(func.count(User.id))
+        query = select(User).order_by(User.created_at.desc())
+        count_query = select(func.count(User.id))
 
-    if search:
-        query = query.where(User.email.ilike(f"%{search}%"))
-        count_query = count_query.where(User.email.ilike(f"%{search}%"))
+        if search:
+            query = query.where(User.email.ilike(f"%{search}%"))
+            count_query = count_query.where(User.email.ilike(f"%{search}%"))
 
-    query = query.offset(offset).limit(per_page)
-    result = await db.execute(query)
-    users = result.scalars().all()
-    total = await db.scalar(count_query)
+        query = query.offset(offset).limit(per_page)
+        result = await db.execute(query)
+        users = result.scalars().all()
+        total = await db.scalar(count_query)
 
-    user_data = []
-    for u in users:
-        lic_result = await db.execute(
-            select(License).where(License.user_id == u.id).order_by(License.created_at.desc()).limit(1)
-        )
-        latest_lic = lic_result.scalar_one_or_none()
-        user_data.append({
-            "id": str(u.id),
-            "email": u.email,
-            "name": u.name,
-            "role": u.role.value,
-            "is_banned": u.is_banned,
-            "latest_license": latest_lic.package.value if latest_lic else None,
-            "created_at": u.created_at.isoformat() if u.created_at else None,
+        user_data = []
+        for u in users:
+            lic_result = await db.execute(
+                select(License).where(License.user_id == u.id).order_by(License.created_at.desc()).limit(1)
+            )
+            latest_lic = lic_result.scalar_one_or_none()
+            user_data.append({
+                "id": str(u.id),
+                "email": u.email,
+                "name": u.name,
+                "role": u.role.value,
+                "is_banned": u.is_banned,
+                "latest_license": latest_lic.package.value if latest_lic else None,
+                "created_at": u.created_at.isoformat() if u.created_at else None,
+            })
+
+        return JSONResponse({
+            "users": user_data,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": (total + per_page - 1) // per_page if total else 0,
         })
-
-    return JSONResponse({
-        "users": user_data,
-        "total": total,
-        "page": page,
-        "per_page": per_page,
-        "total_pages": (total + per_page - 1) // per_page if total else 0,
-    })
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ADMIN USERS ERROR] {e}")
+        import traceback as _tb; _tb.print_exc()
+        return JSONResponse({"detail": str(e)}, status_code=500)
 
 
 @app.get("/api/admin/users/{user_id}")
@@ -796,72 +810,93 @@ async def admin_user_detail(
     db: AsyncSession = Depends(get_db),
 ):
     """Detail user + licenses + transactions."""
-    user = await db.scalar(select(User).where(User.id == user_id))
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    try:
+        user = await db.scalar(select(User).where(User.id == user_id))
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-    api_key_result = await db.execute(
-        select(ApiKey).where(ApiKey.user_id == user.id)
-    )
-    api_key = api_key_result.scalar_one_or_none()
+        api_key_result = await db.execute(
+            select(ApiKey).where(ApiKey.user_id == user.id)
+        )
+        api_key = api_key_result.scalar_one_or_none()
 
-    licenses_result = await db.execute(
-        select(License).where(License.user_id == user.id).order_by(License.created_at.desc())
-    )
-    licenses = licenses_result.scalars().all()
+        licenses_result = await db.execute(
+            select(License).where(License.user_id == user.id).order_by(License.created_at.desc())
+        )
+        licenses = licenses_result.scalars().all()
 
-    txns_result = await db.execute(
-        select(Transaction).where(Transaction.user_id == user.id).order_by(Transaction.created_at.desc()).limit(50)
-    )
-    transactions = txns_result.scalars().all()
+        txns_result = await db.execute(
+            select(Transaction).where(Transaction.user_id == user.id).order_by(Transaction.created_at.desc()).limit(50)
+        )
+        transactions = txns_result.scalars().all()
 
-    return JSONResponse({
-        "user": {
-            "id": str(user.id), "email": user.email, "name": user.name,
-            "role": user.role.value, "is_banned": user.is_banned,
-            "banned_reason": user.banned_reason, "created_at": user.created_at.isoformat() if user.created_at else None,
-            "api_key": api_key.key if api_key else None,
-        },
-        "licenses": [{
-            "id": str(l.id), "package": l.package.value,
-            "total_quota": l.total_quota, "used_quota": l.used_quota,
-            "remaining": l.total_quota - l.used_quota,
-            "max_scrolls": l.max_scrolls, "is_active": l.is_active,
-            "created_at": l.created_at.isoformat() if l.created_at else None,
-        } for l in licenses],
-        "transactions": [{
-            "id": str(t.id), "amount": float(t.amount),
-            "product": t.product.value, "status": t.status.value,
-            "payment_method": t.payment_method,
-            "created_at": t.created_at.isoformat() if t.created_at else None,
-        } for t in transactions],
-    })
+        return JSONResponse({
+            "user": {
+                "id": str(user.id), "email": user.email, "name": user.name,
+                "role": user.role.value, "is_banned": user.is_banned,
+                "banned_reason": user.banned_reason, "created_at": user.created_at.isoformat() if user.created_at else None,
+                "api_key": api_key.key if api_key else None,
+            },
+            "licenses": [{
+                "id": str(l.id), "package": l.package.value,
+                "total_quota": l.total_quota, "used_quota": l.used_quota,
+                "remaining": l.total_quota - l.used_quota,
+                "max_scrolls": l.max_scrolls, "is_active": l.is_active,
+                "created_at": l.created_at.isoformat() if l.created_at else None,
+            } for l in licenses],
+            "transactions": [{
+                "id": str(t.id), "amount": float(t.amount),
+                "product": t.product.value, "status": t.status.value,
+                "payment_method": t.payment_method,
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+            } for t in transactions],
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ADMIN USER DETAIL ERROR] {e}")
+        import traceback as _tb; _tb.print_exc()
+        return JSONResponse({"detail": str(e)}, status_code=500)
 
 
 @app.post("/api/admin/users/{user_id}/ban")
 async def admin_ban_user(user_id: str, reason: str = Form(""), admin: User = Depends(get_admin_user), db: AsyncSession = Depends(get_db)):
-    user = await db.scalar(select(User).where(User.id == user_id))
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    user.is_banned = True
-    user.banned_reason = reason or None
-    # Deactivate all licenses
-    await db.execute(text("UPDATE licenses SET is_active = false WHERE user_id = :uid"), {"uid": user.id})
-    # Deactivate API key
-    await db.execute(text("UPDATE api_keys SET is_active = false WHERE user_id = :uid"), {"uid": user.id})
-    await db.flush()
-    return JSONResponse({"success": True, "message": f"User {user.email} dibanned"})
+    try:
+        user = await db.scalar(select(User).where(User.id == user_id))
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        user.is_banned = True
+        user.banned_reason = reason or None
+        # Deactivate all licenses
+        await db.execute(text("UPDATE licenses SET is_active = false WHERE user_id = :uid"), {"uid": user.id})
+        # Deactivate API key
+        await db.execute(text("UPDATE api_keys SET is_active = false WHERE user_id = :uid"), {"uid": user.id})
+        await db.flush()
+        return JSONResponse({"success": True, "message": f"User {user.email} dibanned"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ADMIN BAN ERROR] {e}")
+        import traceback as _tb; _tb.print_exc()
+        return JSONResponse({"detail": str(e)}, status_code=500)
 
 
 @app.post("/api/admin/users/{user_id}/unban")
 async def admin_unban_user(user_id: str, admin: User = Depends(get_admin_user), db: AsyncSession = Depends(get_db)):
-    user = await db.scalar(select(User).where(User.id == user_id))
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    user.is_banned = False
-    user.banned_reason = None
-    await db.flush()
-    return JSONResponse({"success": True, "message": f"User {user.email} di-unban"})
+    try:
+        user = await db.scalar(select(User).where(User.id == user_id))
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        user.is_banned = False
+        user.banned_reason = None
+        await db.flush()
+        return JSONResponse({"success": True, "message": f"User {user.email} di-unban"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ADMIN UNBAN ERROR] {e}")
+        import traceback as _tb; _tb.print_exc()
+        return JSONResponse({"detail": str(e)}, status_code=500)
 
 
 @app.post("/api/admin/users/{user_id}/add-quota")
@@ -869,14 +904,21 @@ async def admin_add_quota(
     user_id: str, amount: int = Form(...),
     admin: User = Depends(get_admin_user), db: AsyncSession = Depends(get_db),
 ):
-    lic = await db.scalar(
-        select(License).where(License.user_id == user_id, License.is_active == True).order_by(License.created_at.desc()).limit(1)
-    )
-    if not lic:
-        raise HTTPException(status_code=404, detail="No active license")
-    lic.total_quota += amount
-    await db.flush()
-    return JSONResponse({"success": True, "new_total": lic.total_quota})
+    try:
+        lic = await db.scalar(
+            select(License).where(License.user_id == user_id, License.is_active == True).order_by(License.created_at.desc()).limit(1)
+        )
+        if not lic:
+            raise HTTPException(status_code=404, detail="No active license")
+        lic.total_quota += amount
+        await db.flush()
+        return JSONResponse({"success": True, "new_total": lic.total_quota})
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ADMIN ADD QUOTA ERROR] {e}")
+        import traceback as _tb; _tb.print_exc()
+        return JSONResponse({"detail": str(e)}, status_code=500)
 
 
 @app.post("/api/admin/users/{user_id}/edit-quota")
@@ -884,25 +926,39 @@ async def admin_edit_quota(
     user_id: str, new_total: int = Form(...),
     admin: User = Depends(get_admin_user), db: AsyncSession = Depends(get_db),
 ):
-    lic = await db.scalar(
-        select(License).where(License.user_id == user_id, License.is_active == True).order_by(License.created_at.desc()).limit(1)
-    )
-    if not lic:
-        raise HTTPException(status_code=404, detail="No active license")
-    lic.total_quota = new_total
-    await db.flush()
-    return JSONResponse({"success": True, "new_total": lic.total_quota})
+    try:
+        lic = await db.scalar(
+            select(License).where(License.user_id == user_id, License.is_active == True).order_by(License.created_at.desc()).limit(1)
+        )
+        if not lic:
+            raise HTTPException(status_code=404, detail="No active license")
+        lic.total_quota = new_total
+        await db.flush()
+        return JSONResponse({"success": True, "new_total": lic.total_quota})
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ADMIN EDIT QUOTA ERROR] {e}")
+        import traceback as _tb; _tb.print_exc()
+        return JSONResponse({"detail": str(e)}, status_code=500)
 
 
 @app.post("/api/admin/users/{user_id}/reset-key")
 async def admin_reset_key(user_id: str, admin: User = Depends(get_admin_user), db: AsyncSession = Depends(get_db)):
-    # Deactivate old keys
-    await db.execute(text("UPDATE api_keys SET is_active = false WHERE user_id = :uid"), {"uid": user_id})
-    # Create new key
-    new_key = ApiKey(id=uuid.uuid4(), user_id=user_id, key=uuid.uuid4().hex)
-    db.add(new_key)
-    await db.flush()
-    return JSONResponse({"success": True, "new_api_key": new_key.key})
+    try:
+        # Deactivate old keys
+        await db.execute(text("UPDATE api_keys SET is_active = false WHERE user_id = :uid"), {"uid": user_id})
+        # Create new key
+        new_key = ApiKey(id=uuid.uuid4(), user_id=user_id, key=uuid.uuid4().hex)
+        db.add(new_key)
+        await db.flush()
+        return JSONResponse({"success": True, "new_api_key": new_key.key})
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ADMIN RESET KEY ERROR] {e}")
+        import traceback as _tb; _tb.print_exc()
+        return JSONResponse({"detail": str(e)}, status_code=500)
 
 
 @app.get("/api/admin/transactions")
@@ -910,43 +966,50 @@ async def admin_transactions(
     admin: User = Depends(get_admin_user), db: AsyncSession = Depends(get_db),
     page: int = 1, status: str = "", date_from: str = "", date_to: str = "",
 ):
-    per_page = 30
-    offset = (page - 1) * per_page
-    query = select(Transaction).order_by(Transaction.created_at.desc())
-    count_query = select(func.count(Transaction.id))
+    try:
+        per_page = 30
+        offset = (page - 1) * per_page
+        query = select(Transaction).order_by(Transaction.created_at.desc())
+        count_query = select(func.count(Transaction.id))
 
-    if status:
-        query = query.where(Transaction.status == TransactionStatus(status))
-        count_query = count_query.where(Transaction.status == TransactionStatus(status))
-    if date_from:
-        from_dt = datetime.strptime(date_from, "%Y-%m-%d")
-        query = query.where(Transaction.created_at >= from_dt)
-        count_query = count_query.where(Transaction.created_at >= from_dt)
-    if date_to:
-        to_dt = datetime.strptime(date_to, "%Y-%m-%d")
-        query = query.where(Transaction.created_at < to_dt)
-        count_query = count_query.where(Transaction.created_at < to_dt)
+        if status:
+            query = query.where(Transaction.status == TransactionStatus(status))
+            count_query = count_query.where(Transaction.status == TransactionStatus(status))
+        if date_from:
+            from_dt = datetime.strptime(date_from, "%Y-%m-%d")
+            query = query.where(Transaction.created_at >= from_dt)
+            count_query = count_query.where(Transaction.created_at >= from_dt)
+        if date_to:
+            to_dt = datetime.strptime(date_to, "%Y-%m-%d")
+            query = query.where(Transaction.created_at < to_dt)
+            count_query = count_query.where(Transaction.created_at < to_dt)
 
-    query = query.offset(offset).limit(per_page)
-    result = await db.execute(query)
-    txns = result.scalars().all()
-    total = await db.scalar(count_query)
+        query = query.offset(offset).limit(per_page)
+        result = await db.execute(query)
+        txns = result.scalars().all()
+        total = await db.scalar(count_query)
 
-    txn_data = []
-    for t in txns:
-        user = await db.scalar(select(User).where(User.id == t.user_id))
-        txn_data.append({
-            "id": str(t.id), "user_email": user.email if user else "?",
-            "user_name": user.name if user else "?",
-            "amount": float(t.amount), "product": t.product.value,
-            "status": t.status.value, "payment_method": t.payment_method,
-            "invoice_number": getattr(t, "invoice_number", None),
-            "created_at": t.created_at.isoformat() if t.created_at else None,
+        txn_data = []
+        for t in txns:
+            user = await db.scalar(select(User).where(User.id == t.user_id))
+            txn_data.append({
+                "id": str(t.id), "user_email": user.email if user else "?",
+                "user_name": user.name if user else "?",
+                "amount": float(t.amount), "product": t.product.value,
+                "status": t.status.value, "payment_method": t.payment_method,
+                "invoice_number": getattr(t, "invoice_number", None),
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+            })
+
+        return JSONResponse({
+            "transactions": txn_data, "total": total, "page": page,
         })
-
-    return JSONResponse({
-        "transactions": txn_data, "total": total, "page": page,
-    })
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ADMIN TRANSACTIONS ERROR] {e}")
+        import traceback as _tb; _tb.print_exc()
+        return JSONResponse({"detail": str(e)}, status_code=500)
 
 
 # ══════════════════════════════════════════════════════════════════
