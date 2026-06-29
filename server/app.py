@@ -997,6 +997,8 @@ async def admin_add_license(
             user_id=user_id,
             product=PackageType(package_key),
             amount=0,
+            duitku_order_id=f"ADM-{uuid.uuid4().hex[:12]}",
+            reference="",
             status=TransactionStatus.success,
             payment_method="manual_admin",
             invoice_number=f"ADM-{uuid.uuid4().hex[:8].upper()}",
