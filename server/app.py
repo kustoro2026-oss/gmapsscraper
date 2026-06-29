@@ -217,7 +217,7 @@ async def register(
             user_id=user.id,
             package=PackageType.trial,
             total_quota=10,
-            max_scrolls=20,
+            max_scrolls=1,
         )
         db.add(trial_license)
         await db.flush()
