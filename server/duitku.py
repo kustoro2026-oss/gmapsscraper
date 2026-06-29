@@ -25,10 +25,10 @@ API_URL = DUITKU_SANDBOX_URL if DUITKU_SANDBOX else DUITKU_BASE_URL
 # ── Package Pricing ─────────────────────────────────────────────────
 
 PACKAGES = {
-    "starter": {"name": "STARTER", "price": 29000, "quota": 25, "max_scrolls": 10},
-    "basic":   {"name": "BASIC",   "price": 79000, "quota": 100, "max_scrolls": 20},
-    "pro":     {"name": "PRO",     "price": 179000, "quota": 300, "max_scrolls": 40},
-    "bisnis":  {"name": "BISNIS",  "price": 349000, "quota": 1000, "max_scrolls": 50},
+    "starter": {"name": "STARTER", "price": 25000, "quota": 30, "max_scrolls": 10},
+    "basic":   {"name": "BASIC",   "price": 69000, "quota": 120, "max_scrolls": 20},
+    "pro":     {"name": "PRO",     "price": 149000, "quota": 350, "max_scrolls": 40},
+    "bisnis":  {"name": "BISNIS",  "price": 299000, "quota": 1000, "max_scrolls": 50},
 }
 
 
