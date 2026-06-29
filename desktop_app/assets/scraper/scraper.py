@@ -17,6 +17,7 @@ import csv
 import json
 import os
 import random
+import re
 import sys
 import time as time_mod
 from datetime import datetime
@@ -50,8 +51,9 @@ STEALTH_SCRIPT = """
 # Blocked resource types (hemat bandwidth)
 BLOCKED_EXTENSIONS = (
     ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico",
-    ".css", ".woff", ".woff2", ".ttf", ".eot", ".mp4", ".mp3",
+    ".woff", ".woff2", ".ttf", ".eot", ".mp4", ".mp3",
     ".webm", ".avif",
+    # NOTE: .css TIDAK diblokir — halaman /place/ butuh CSS untuk render
 )
 BLOCKED_DOMAINS = (
     "google-analytics", "googletagmanager", "doubleclick",
@@ -317,22 +319,27 @@ async def scrape(keyword: str, max_scrolls: int = 10,
         await page.close()
 
         # ═══ PHASE 2: Extract detail ═══
-        CONCURRENCY = 4
+        CONCURRENCY = 4  # 4 tab paralel — stabil di koneksi Indonesia
         semaphore = aio.Semaphore(CONCURRENCY)
         total = len(place_urls)
-        results = [{}] * total
+        results = [{} for _ in range(total)]
         done_count = 0
+
+        # Bersihkan URL dari query params tidak perlu
+        clean_urls = [re.sub(r'[?&](authuser|hl|rclk|sca_esv|ved|ictx)=[^&]*', '', u).rstrip('?') for u in place_urls]
 
         async def process_one(idx: int, biz_url: str):
             nonlocal done_count
             async with semaphore:
-                try:
-                    jitter = random.uniform(1.5, 4.0)
-                    await aio.sleep(idx * random.uniform(0.3, 1.0) + jitter)
+                jitter = random.uniform(1.5, 4.0)
+                await aio.sleep(idx * random.uniform(0.3, 1.0) + jitter)
+
+                for attempt in range(2):  # Retry 1x kalau timeout
                     biz_page = await context.new_page()
                     await biz_page.route("**/*", resource_blocker)
                     try:
-                        await biz_page.goto(biz_url, wait_until="domcontentloaded", timeout=30000)
+                        # Timeout 60s — cukup untuk koneksi Indonesia
+                        await biz_page.goto(biz_url, wait_until="domcontentloaded", timeout=60000)
                         await biz_page.wait_for_timeout(random.randint(2000, 4000))
                         try:
                             await biz_page.keyboard.press("Escape")
@@ -345,15 +352,20 @@ async def scrape(keyword: str, max_scrolls: int = 10,
                         name = info.get("nama_usaha", "?")[:25]
                         prog_pct = 75 + int((done_count / total) * 20)
                         print(f"PROGRESS:{prog_pct}:[{done_count}/{total}] {name}")
-                    finally:
                         await biz_page.close()
-                except Exception as e:
-                    results[idx] = {"nama_usaha": "", "nomor_hp": "", "alamat": "", "website": ""}
-                    done_count += 1
-                    prog_pct = 75 + int((done_count / total) * 20)
-                    print(f"PROGRESS:{prog_pct}:[{done_count}/{total}] Gagal: {e}")
+                        return  # Sukses, keluar
+                    except Exception as e:
+                        await biz_page.close()
+                        if attempt == 0:
+                            print(f"PROGRESS:{75 + int((done_count / total) * 20)}:[{done_count+1}/{total}] Retry: {e}")
+                            await aio.sleep(random.uniform(3.0, 6.0))
+                        else:
+                            results[idx] = {"nama_usaha": "", "nomor_hp": "", "alamat": "", "website": ""}
+                            done_count += 1
+                            prog_pct = 75 + int((done_count / total) * 20)
+                            print(f"PROGRESS:{prog_pct}:[{done_count}/{total}] Gagal: {e}")
 
-        tasks = [process_one(i, url) for i, url in enumerate(place_urls)]
+        tasks = [process_one(i, url) for i, url in enumerate(clean_urls)]
         await aio.gather(*tasks)
 
         results = [r if r else {"nama_usaha": "", "nomor_hp": "", "alamat": "", "website": ""} for r in results]
