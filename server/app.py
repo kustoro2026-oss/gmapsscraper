@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends, HTTPException, Request, Form
-from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse, FileResponse
+from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -101,6 +102,9 @@ else:
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
+templates = Jinja2Templates(directory=templates_dir)
+
+
 # ── Health Check ──────────────────────────────────────────────────
 
 @app.get("/health")
@@ -128,25 +132,34 @@ async def debug_apikey(api_key: str, db: AsyncSession = Depends(get_db)):
 
 @app.get("/", response_class=HTMLResponse)
 async def landing():
-    from fastapi.responses import FileResponse
-    return FileResponse(os.path.join(templates_dir, "landing.html"))
+    try:
+        return FileResponse(os.path.join(templates_dir, "landing.html"))
+    except Exception as e:
+        print(f"[LANDING ERROR] {e}")
+        import traceback; traceback.print_exc()
+        return HTMLResponse(f"<h1>500 — Server Error</h1><p>{e}</p>", status_code=500)
+
+
+@app.get("/favicon.ico")
+async def favicon():
+    favicon_path = os.path.join(static_dir, "logo-gmaps.png")
+    if os.path.exists(favicon_path):
+        return FileResponse(favicon_path, media_type="image/png")
+    raise HTTPException(404)
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_page():
-    from fastapi.responses import FileResponse
     return FileResponse(os.path.join(templates_dir, "dashboard.html"))
 
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page():
-    from fastapi.responses import FileResponse
     return FileResponse(os.path.join(templates_dir, "login.html"))
 
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page():
-    from fastapi.responses import FileResponse
     return FileResponse(os.path.join(templates_dir, "admin.html"))
 
 
@@ -901,8 +914,6 @@ async def admin_transactions(
 
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc):
-    from fastapi.templating import Jinja2Templates
-    templates = Jinja2Templates(directory=templates_dir)
     return HTMLResponse(
         templates.get_template("error.html").render({
             "code": "404", "title": "Halaman Tidak Ditemukan",
@@ -915,8 +926,9 @@ async def not_found_handler(request: Request, exc):
 
 @app.exception_handler(500)
 async def server_error_handler(request: Request, exc):
-    from fastapi.templating import Jinja2Templates
-    templates = Jinja2Templates(directory=templates_dir)
+    import traceback
+    print(f"[500 ERROR] {request.url} — {exc}")
+    traceback.print_exc()
     return HTMLResponse(
         templates.get_template("error.html").render({
             "code": "500", "title": "Server Error",
