@@ -190,6 +190,31 @@ async def register(
         # Cek email sudah dipakai
         existing = await db.scalar(select(User).where(User.email == email))
         if existing:
+            # Kalau user lama belum punya password (era OTP), upgrade ke password
+            if not existing.password_hash:
+                existing.password_hash = hash_password(password)
+                existing.name = name
+                # Pastikan role admin kalau email di ADMIN_EMAILS
+                if email in ADMIN_EMAILS and existing.role != UserRole.admin:
+                    existing.role = UserRole.admin
+                token = create_token(str(existing.id), existing.role.value)
+                key_result = await db.execute(
+                    select(ApiKey).where(ApiKey.user_id == existing.id)
+                )
+                api_key_obj = key_result.scalar_one_or_none()
+                return JSONResponse({
+                    "success": True,
+                    "message": "Password berhasil diset! Silakan login.",
+                    "token": token,
+                    "user": {
+                        "id": str(existing.id),
+                        "email": existing.email,
+                        "name": existing.name,
+                        "role": existing.role.value,
+                        "is_new": False,
+                    },
+                    "api_key": api_key_obj.key if api_key_obj else None,
+                })
             raise HTTPException(status_code=400, detail="Email sudah terdaftar. Silakan login.")
 
         # Tentukan role (admin jika email di ADMIN_EMAILS)
