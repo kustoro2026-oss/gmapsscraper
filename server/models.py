@@ -95,6 +95,7 @@ class Transaction(Base):
     product = Column(SAEnum(PackageType), nullable=False)
     status = Column(SAEnum(TransactionStatus), default=TransactionStatus.pending, nullable=False, index=True)
     payment_method = Column(String(50), nullable=True)
+    invoice_number = Column(String(30), nullable=True, unique=True)  # INV-YYYYMMDD-XXXX
     callback_raw = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)

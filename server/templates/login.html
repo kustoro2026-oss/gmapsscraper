@@ -102,7 +102,7 @@ otpForm.addEventListener("submit", async (e) => {
             localStorage.setItem("token", data.token);
             localStorage.setItem("user", JSON.stringify(data.user));
             localStorage.setItem("api_key", data.api_key);
-            window.location.href = "/";
+            window.location.href = "/dashboard";
         } else {
             msgDiv.className = "error";
             msgDiv.textContent = data.detail || "OTP tidak valid";

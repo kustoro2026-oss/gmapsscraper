@@ -13,10 +13,20 @@ from sqlalchemy import select
 
 from database import get_db
 from models import User, ApiKey, UserRole
+from emailer import send_otp_email, send_welcome_email
 
 # ── Config ──────────────────────────────────────────────────────────
 
-JWT_SECRET = os.environ.get("JWT_SECRET", secrets.token_hex(32))
+JWT_SECRET = os.environ.get("JWT_SECRET")
+if not JWT_SECRET:
+    print("=" * 60)
+    print("  [FATAL] JWT_SECRET not set! All tokens invalid on restart!")
+    print("  Set JWT_SECRET env var to a strong random value.")
+    print("=" * 60)
+    import sys
+    sys.exit(1)
+
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")  # optional extra admin security
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_HOURS = 24
 ADMIN_EMAILS = os.environ.get("ADMIN_EMAILS", "").split(",")  # e.g. "me@email.com"
@@ -55,8 +65,8 @@ def generate_otp(email: str) -> str:
         code,
         datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRE_MINUTES),
     )
-    # TODO: kirim via email API (SendGrid, Mailgun, dll)
-    print(f"   [OTP] {email} → {code}")
+    # Kirim OTP via email (Gmail SMTP)
+    send_otp_email(email, code)
     return code
 
 
@@ -94,10 +104,16 @@ async def get_current_user(
 
 
 async def get_admin_user(
+    request: Request,
     user: User = Depends(get_current_user),
 ) -> User:
     if user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Admin only")
+    # Optional: admin password check via X-Admin-Password header
+    if ADMIN_PASSWORD:
+        admin_pass = request.headers.get("X-Admin-Password", "")
+        if admin_pass != ADMIN_PASSWORD:
+            raise HTTPException(status_code=403, detail="Admin password required")
     return user
 
 

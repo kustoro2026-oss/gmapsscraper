@@ -11,6 +11,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from database import init_db, get_db, engine, Base  # noqa: F401
 from models import User, ApiKey, License, Transaction, UsageLog, TransactionStatus, UserRole, PackageType
@@ -21,6 +24,11 @@ from auth import (
     get_user_by_api_key, get_license_by_api_key,
 )
 from duitku import create_invoice, verify_callback_signature, PACKAGES
+from emailer import send_welcome_email, send_payment_confirmation
+
+# ── Rate Limiter ──────────────────────────────────────────────────
+
+limiter = Limiter(key_func=get_remote_address)
 
 # ── Server URL ────────────────────────────────────────────────────
 
@@ -72,6 +80,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="GMaps Scraper License Server", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -119,6 +129,12 @@ async def debug_apikey(api_key: str, db: AsyncSession = Depends(get_db)):
 @app.get("/", response_class=HTMLResponse)
 async def landing():
     from fastapi.responses import FileResponse
+    return FileResponse(os.path.join(templates_dir, "landing.html"))
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard_page():
+    from fastapi.responses import FileResponse
     return FileResponse(os.path.join(templates_dir, "dashboard.html"))
 
 
@@ -139,16 +155,17 @@ async def admin_page():
 # ══════════════════════════════════════════════════════════════════
 
 @app.post("/api/auth/send-otp")
-async def send_otp(email: str = Form(...)):
+@limiter.limit("3/minute")
+async def send_otp(request: Request, email: str = Form(...)):
     """Kirim OTP 6-digit ke email."""
     email = email.strip().lower()
     code = generate_otp(email)
-    # TODO: integrasi email provider (SendGrid / Mailgun / SMTP)
-    return JSONResponse({"success": True, "message": f"OTP dikirim ke {email} (dev: {code})"})
+    return JSONResponse({"success": True, "message": f"OTP dikirim ke {email}. Cek inbox/spam."})
 
 
 @app.post("/api/auth/verify")
-async def verify(email: str = Form(...), otp: str = Form(...), db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def verify(request: Request, email: str = Form(...), otp: str = Form(...), db: AsyncSession = Depends(get_db)):
     """Verifikasi OTP, return JWT. Auto-create user jika belum ada."""
     email = email.strip().lower()
     if not verify_otp(email, otp):
@@ -184,6 +201,8 @@ async def verify(email: str = Form(...), otp: str = Form(...), db: AsyncSession 
         )
         db.add(trial_license)
         await db.flush()
+        # Kirim welcome email untuk user baru
+        send_welcome_email(email, user.name or email.split("@")[0])
 
     token = create_token(str(user.id), user.role.value)
     return JSONResponse({
@@ -271,6 +290,122 @@ async def use_quota(
 
 
 # ══════════════════════════════════════════════════════════════════
+#  USER ROUTES (Dashboard)
+# ══════════════════════════════════════════════════════════════════
+
+@app.get("/api/user/history")
+async def user_history(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    page: int = 1,
+):
+    """Riwayat scraping user."""
+    per_page = 20
+    offset = (page - 1) * per_page
+    count = await db.scalar(select(func.count(UsageLog.id)).where(UsageLog.user_id == user.id))
+    result = await db.execute(
+        select(UsageLog)
+        .where(UsageLog.user_id == user.id)
+        .order_by(UsageLog.created_at.desc())
+        .offset(offset).limit(per_page)
+    )
+    logs = result.scalars().all()
+    return JSONResponse({
+        "logs": [{
+            "id": str(l.id), "keyword": l.keyword, "results_count": l.results_count,
+            "created_at": l.created_at.isoformat() if l.created_at else None,
+        } for l in logs],
+        "total": count, "page": page, "total_pages": max(1, (count + per_page - 1) // per_page),
+    })
+
+
+@app.get("/api/user/invoices")
+async def user_invoices(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    page: int = 1,
+):
+    """Riwayat transaksi user."""
+    per_page = 20
+    offset = (page - 1) * per_page
+    count = await db.scalar(
+        select(func.count(Transaction.id)).where(Transaction.user_id == user.id)
+    )
+    result = await db.execute(
+        select(Transaction)
+        .where(Transaction.user_id == user.id)
+        .order_by(Transaction.created_at.desc())
+        .offset(offset).limit(per_page)
+    )
+    txns = result.scalars().all()
+    return JSONResponse({
+        "invoices": [{
+            "id": str(t.id), "amount": float(t.amount), "product": t.product.value,
+            "status": t.status.value, "invoice_number": getattr(t, "invoice_number", None),
+            "payment_method": t.payment_method,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+        } for t in txns],
+        "total": count, "page": page, "total_pages": max(1, (count + per_page - 1) // per_page),
+    })
+
+
+@app.get("/api/user/invoice/{txn_id}/download", response_class=HTMLResponse)
+async def download_invoice(
+    txn_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Download invoice as HTML receipt."""
+    result = await db.execute(
+        select(Transaction).where(Transaction.id == txn_id, Transaction.user_id == user.id)
+    )
+    txn = result.scalar_one_or_none()
+    if not txn:
+        raise HTTPException(status_code=404, detail="Invoice tidak ditemukan")
+    inv_no = getattr(txn, "invoice_number", txn.duitku_order_id)
+    return HTMLResponse(f"""<!DOCTYPE html>
+<html lang="id"><head><meta charset="UTF-8"><title>Invoice {inv_no}</title>
+<style>body{{font-family:Arial,sans-serif;max-width:600px;margin:40px auto;padding:20px;}}h1{{color:#3b82f6;}}table{{width:100%;border-collapse:collapse;margin:20px 0;}}td,th{{padding:8px;border-bottom:1px solid #ddd;text-align:left;}}.total{{font-size:20px;font-weight:bold;}}
+@media print{{body{{margin:0;padding:0;}}}}</style></head><body>
+<h1>GMaps Scraper — Invoice</h1>
+<p><strong>Invoice:</strong> {inv_no}<br><strong>Tanggal:</strong> {txn.created_at.strftime('%d %B %Y') if txn.created_at else '-'}</p>
+<table>
+<tr><td>Paket</td><td><strong>{txn.product.value.upper()}</strong></td></tr>
+<tr><td>Total</td><td class="total">Rp {int(txn.amount):,}</td></tr>
+<tr><td>Status</td><td>{txn.status.value.upper()}</td></tr>
+<tr><td>Metode</td><td>{txn.payment_method or '-'}</td></tr>
+</table>
+<p style="color:#888;font-size:12px;">Terima kasih telah menggunakan GMaps Scraper.</p>
+<script>window.print();</script>
+</body></html>""")
+
+
+@app.post("/api/user/profile")
+async def update_profile(
+    name: str = Form(...),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update nama profil."""
+    user.name = name[:255]
+    await db.flush()
+    return JSONResponse({"success": True, "name": user.name})
+
+
+@app.post("/api/user/reset-key")
+async def reset_my_key(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Reset API key sendiri."""
+    await db.execute(text("UPDATE api_keys SET is_active = false WHERE user_id = :uid"), {"uid": user.id})
+    new_key = ApiKey(id=uuid.uuid4(), user_id=user.id, key=uuid.uuid4().hex)
+    db.add(new_key)
+    await db.flush()
+    return JSONResponse({"success": True, "new_api_key": new_key.key})
+
+
+# ══════════════════════════════════════════════════════════════════
 #  DESKTOP APP ROUTES (API Key auth)
 # ══════════════════════════════════════════════════════════════════
 
@@ -354,7 +489,9 @@ async def desktop_use_quota(
 # ══════════════════════════════════════════════════════════════════
 
 @app.post("/api/payment/create")
+@limiter.limit("10/minute")
 async def payment_create(
+    request: Request,
     package_key: str = Form(...),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -427,6 +564,9 @@ async def payment_callback(request: Request, db: AsyncSession = Depends(get_db))
 
     if result_code == "00":  # Success
         txn.status = TransactionStatus.success
+        # Generate invoice number
+        date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+        txn.invoice_number = f"INV-{date_str}-{uuid.uuid4().hex[:4].upper()}"
         pkg = PACKAGES.get(txn.product.value, {})
         # Create license
         lic = License(
@@ -439,6 +579,17 @@ async def payment_callback(request: Request, db: AsyncSession = Depends(get_db))
         )
         db.add(lic)
         txn.license_id = lic.id
+        # Send payment confirmation email
+        user_result = await db.execute(select(User).where(User.id == txn.user_id))
+        pay_user = user_result.scalar_one_or_none()
+        if pay_user:
+            send_payment_confirmation(
+                pay_user.email,
+                pay_user.name or pay_user.email.split("@")[0],
+                txn.product.value.upper(),
+                int(txn.amount),
+                txn.invoice_number,
+            )
     elif result_code in ("01", "02", "03"):
         txn.status = TransactionStatus.failed
 
@@ -449,7 +600,7 @@ async def payment_callback(request: Request, db: AsyncSession = Depends(get_db))
 @app.get("/api/payment/return")
 async def payment_return():
     """Redirect setelah user selesai bayar."""
-    return RedirectResponse(url="/")
+    return RedirectResponse(url="/dashboard")
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -647,7 +798,7 @@ async def admin_reset_key(user_id: str, admin: User = Depends(get_admin_user), d
 @app.get("/api/admin/transactions")
 async def admin_transactions(
     admin: User = Depends(get_admin_user), db: AsyncSession = Depends(get_db),
-    page: int = 1, status: str = "",
+    page: int = 1, status: str = "", date_from: str = "", date_to: str = "",
 ):
     per_page = 30
     offset = (page - 1) * per_page
@@ -657,6 +808,14 @@ async def admin_transactions(
     if status:
         query = query.where(Transaction.status == TransactionStatus(status))
         count_query = count_query.where(Transaction.status == TransactionStatus(status))
+    if date_from:
+        from_dt = datetime.strptime(date_from, "%Y-%m-%d")
+        query = query.where(Transaction.created_at >= from_dt)
+        count_query = count_query.where(Transaction.created_at >= from_dt)
+    if date_to:
+        to_dt = datetime.strptime(date_to, "%Y-%m-%d")
+        query = query.where(Transaction.created_at < to_dt)
+        count_query = count_query.where(Transaction.created_at < to_dt)
 
     query = query.offset(offset).limit(per_page)
     result = await db.execute(query)
@@ -671,12 +830,45 @@ async def admin_transactions(
             "user_name": user.name if user else "?",
             "amount": float(t.amount), "product": t.product.value,
             "status": t.status.value, "payment_method": t.payment_method,
+            "invoice_number": getattr(t, "invoice_number", None),
             "created_at": t.created_at.isoformat() if t.created_at else None,
         })
 
     return JSONResponse({
         "transactions": txn_data, "total": total, "page": page,
     })
+
+
+# ══════════════════════════════════════════════════════════════════
+#  ERROR HANDLERS
+# ══════════════════════════════════════════════════════════════════
+
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc):
+    from fastapi.templating import Jinja2Templates
+    templates = Jinja2Templates(directory=templates_dir)
+    return HTMLResponse(
+        templates.get_template("error.html").render({
+            "code": "404", "title": "Halaman Tidak Ditemukan",
+            "message": "Halaman yang kamu cari tidak ada atau sudah dipindahkan.",
+            "request": request,
+        }),
+        status_code=404,
+    )
+
+
+@app.exception_handler(500)
+async def server_error_handler(request: Request, exc):
+    from fastapi.templating import Jinja2Templates
+    templates = Jinja2Templates(directory=templates_dir)
+    return HTMLResponse(
+        templates.get_template("error.html").render({
+            "code": "500", "title": "Server Error",
+            "message": "Terjadi kesalahan di server. Coba lagi nanti.",
+            "request": request,
+        }),
+        status_code=500,
+    )
 
 
 # ── Run ───────────────────────────────────────────────────────────

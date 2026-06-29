@@ -5,194 +5,304 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard — GMaps Scraper</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; }
-        header { background: #1e293b; border-bottom: 1px solid #334155; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
-        header h1 { font-size: 20px; }
-        header nav a { color: #94a3b8; text-decoration: none; margin-left: 20px; font-size: 14px; }
-        header nav a:hover { color: #e2e8f0; }
-        main { max-width: 900px; margin: 40px auto; padding: 0 20px; }
-        .card { background: #1e293b; border-radius: 16px; padding: 32px; border: 1px solid #334155; margin-bottom: 24px; }
-        .card h2 { font-size: 18px; margin-bottom: 16px; }
-        .welcome { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
-        .welcome-sub { color: #94a3b8; margin-bottom: 24px; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
-        .stat-box { background: #0f172a; border-radius: 12px; padding: 20px; text-align: center; }
-        .stat-box .value { font-size: 32px; font-weight: 700; color: #3b82f6; }
-        .stat-box .label { font-size: 13px; color: #94a3b8; margin-top: 4px; }
-        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; }
-        .pricing-card { background: #0f172a; border-radius: 12px; padding: 24px; text-align: center; border: 2px solid #334155; cursor: pointer; transition: border-color 0.2s }
-        .pricing-card:hover { border-color: #3b82f6; }
-        .pricing-card.popular { border-color: #3b82f6; }
-        .pricing-card .tier { font-weight: 700; font-size: 14px; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px; }
-        .pricing-card .price { font-size: 28px; font-weight: 800; color: #3b82f6; }
-        .pricing-card .details { font-size: 13px; color: #94a3b8; margin-top: 8px; }
-        .pricing-card .buy-btn { display: inline-block; margin-top: 16px; padding: 10px 24px; border-radius: 8px; background: #3b82f6; color: white; text-decoration: none; font-weight: 600; font-size: 14px; }
-        .row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #1e293b; }
-        .row:last-child { border-bottom: none; }
-        .empty { text-align: center; color: #94a3b8; padding: 40px; }
-        .btn { padding: 10px 20px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; }
-        .btn-outline { background: transparent; border: 1px solid #334155; color: #e2e8f0; }
-        .api-key-box { background: #0f172a; padding: 16px; border-radius: 10px; font-family: monospace; font-size: 14px; word-break: break-all; color: #22c55e; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
-        .api-key-box .copy-btn { background: #334155; border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
-        .hidden { display: none; }
+        :root { --bg:#0a0f1f; --bg2:#111827; --bg3:#1a2332; --border:#1e293b; --txt:#e2e8f0; --dim:#94a3b8; --blue:#3b82f6; --green:#22c55e; --orange:#f59e0b; --red:#ef4444; --r:12px; }
+        * { box-sizing:border-box; margin:0; padding:0; }
+        body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--txt); display:flex; min-height:100vh; }
+        .sidebar { width:240px; background:var(--bg2); border-right:1px solid var(--border); padding:24px 16px; display:flex; flex-direction:column; position:fixed; height:100vh; z-index:10; }
+        .sidebar-logo { font-size:20px; font-weight:800; margin-bottom:32px; padding:0 8px; color:white; text-decoration:none; }
+        .sidebar-logo span { color:var(--blue); }
+        .sidebar nav { flex:1; display:flex; flex-direction:column; gap:4px; }
+        .nav-item { display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:8px; color:var(--dim); text-decoration:none; font-size:14px; font-weight:500; cursor:pointer; transition:all 0.15s; border:none; background:none; width:100%; text-align:left; }
+        .nav-item:hover { background:rgba(59,130,246,0.08); color:var(--txt); }
+        .nav-item.active { background:rgba(59,130,246,0.15); color:var(--blue); font-weight:600; }
+        .nav-icon { font-size:18px; width:24px; text-align:center; flex-shrink:0; }
+        .sidebar-user { padding:12px 14px; border-top:1px solid var(--border); margin-top:auto; font-size:13px; color:var(--dim); }
+        .sidebar-user .name { color:var(--txt); font-weight:600; }
+        .main { margin-left:240px; flex:1; padding:32px; max-width:calc(100% - 240px); }
+        .tab-panel { display:none; }
+        .tab-panel.active { display:block; }
+
+        /* Cards */
+        .card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--r); padding:24px; margin-bottom:20px; }
+        .card h2 { font-size:18px; margin-bottom:16px; }
+        .card h3 { font-size:15px; margin-bottom:12px; }
+        .welcome { font-size:26px; font-weight:700; margin-bottom:4px; }
+        .welcome-sub { color:var(--dim); margin-bottom:20px; }
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; }
+        .stat { background:var(--bg); border-radius:var(--r); padding:18px; text-align:center; }
+        .stat .val { font-size:30px; font-weight:700; color:var(--blue); }
+        .stat .lbl { font-size:12px; color:var(--dim); margin-top:4px; }
+
+        /* API Key */
+        .api-box { display:flex; justify-content:space-between; align-items:center; background:var(--bg); padding:14px 18px; border-radius:10px; font-family:'SF Mono',Monaco,monospace; font-size:14px; color:var(--green); word-break:break-all; }
+        .api-box button { padding:6px 14px; border-radius:6px; background:var(--bg3); color:white; border:none; cursor:pointer; font-size:12px; white-space:nowrap; margin-left:12px; }
+
+        /* Pricing */
+        .pricing { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; }
+        .price-card { background:var(--bg); border:2px solid var(--border); border-radius:var(--r); padding:22px 18px; text-align:center; cursor:pointer; transition:all 0.2s; }
+        .price-card:hover { border-color:var(--blue); transform:translateY(-2px); }
+        .price-card .tier { font-size:12px; font-weight:700; text-transform:uppercase; color:var(--dim); margin-bottom:6px; }
+        .price-card .amt { font-size:26px; font-weight:800; color:var(--blue); }
+        .price-card .det { font-size:12px; color:var(--dim); margin:10px 0 14px; line-height:1.6; }
+        .price-card .buy { display:inline-block; padding:8px 20px; border-radius:8px; background:var(--blue); color:white; font-weight:600; font-size:13px; text-decoration:none; }
+
+        /* Table */
+        table { width:100%; border-collapse:collapse; font-size:13px; }
+        th { text-align:left; padding:10px 8px; border-bottom:2px solid var(--border); color:var(--dim); font-weight:600; }
+        td { padding:10px 8px; border-bottom:1px solid var(--bg3); }
+        tr:hover td { background:rgba(59,130,246,0.04); }
+        .badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+        .badge-green { background:#065f46; color:var(--green); }
+        .badge-red { background:#7f1d1d; color:var(--red); }
+        .badge-yellow { background:#78350f; color:var(--orange); }
+        .badge-blue { background:#1e3a5f; color:var(--blue); }
+
+        .btn { padding:10px 20px; border-radius:8px; border:none; font-size:14px; font-weight:600; cursor:pointer; transition:all 0.15s; }
+        .btn-blue { background:var(--blue); color:white; }
+        .btn-blue:hover { background:#2563eb; }
+        .btn-outline { background:transparent; border:1px solid var(--border); color:var(--txt); }
+        .btn-outline:hover { border-color:var(--dim); }
+        .btn-sm { padding:5px 12px; font-size:12px; }
+        .btn-danger { background:var(--red); color:white; }
+        .btn-danger:hover { background:#dc2626; }
+
+        input[type=text],input[type=number] { padding:10px 14px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--txt); font-size:14px; width:100%; }
+        input:focus { outline:none; border-color:var(--blue); }
+
+        .empty { text-align:center; color:var(--dim); padding:40px; font-size:14px; }
+        .flex { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
+        .pagination { display:flex; gap:6px; justify-content:center; margin-top:14px; }
+        .pagination button { padding:6px 14px; border-radius:6px; background:var(--bg3); color:white; border:none; cursor:pointer; font-size:13px; }
+        .pagination button.on { background:var(--blue); }
+
+        /* Toast */
+        #toast { position:fixed; bottom:24px; right:24px; z-index:999; display:flex; flex-direction:column; gap:8px; }
+        .toast { padding:12px 20px; border-radius:10px; font-size:14px; font-weight:500; animation:slideIn 0.3s ease; max-width:360px; }
+        .toast-success { background:#065f46; color:var(--green); border:1px solid #059669; }
+        .toast-error { background:#7f1d1d; color:var(--red); border:1px solid #dc2626; }
+        @keyframes slideIn { from { transform:translateX(100%);opacity:0; } to { transform:translateX(0);opacity:1; } }
+
+        @media (max-width:768px) {
+            .sidebar { width:200px; }
+            .main { margin-left:200px; max-width:calc(100% - 200px); padding:20px; }
+        }
+        @media (max-width:600px) {
+            .sidebar { display:none; }
+            .main { margin-left:0; max-width:100%; }
+        }
     </style>
 </head>
 <body>
-<header>
-    <h1>GMaps Scraper</h1>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+    <a href="/" class="sidebar-logo">GMaps<span>Scraper</span></a>
     <nav>
-        <span id="user-name" style="color:#94a3b8;font-size:14px;"></span>
-        <a href="#" onclick="logout()">Logout</a>
+        <button class="nav-item active" onclick="showTab('overview')" id="nav-overview"><span class="nav-icon">📊</span> Overview</button>
+        <button class="nav-item" onclick="showTab('history')" id="nav-history"><span class="nav-icon">📋</span> Riwayat Scraping</button>
+        <button class="nav-item" onclick="showTab('invoices')" id="nav-invoices"><span class="nav-icon">🧾</span> Invoice</button>
+        <button class="nav-item" onclick="showTab('settings')" id="nav-settings"><span class="nav-icon">⚙️</span> Settings</button>
     </nav>
-</header>
+    <div class="sidebar-user">
+        <div class="name" id="sidebar-name">---</div>
+        <div id="sidebar-email">---</div>
+    </div>
+</aside>
 
-<main>
-    <!-- Not logged in -->
-    <section id="guest-section">
-        <div class="card">
-            <div class="welcome">Selamat Datang</div>
-            <div class="welcome-sub">Scrape data bisnis dari Google Maps pakai IP sendiri.</div>
-            <a href="/login" class="btn" style="display:inline-block;background:#3b82f6;color:white;text-decoration:none;">Login / Daftar</a>
-        </div>
-        <div class="card">
-            <h2>Harga Paket</h2>
-            <div class="pricing-grid">
-                <div class="pricing-card"><div class="tier">Starter</div><div class="price">Rp 29K</div><div class="details">25x pencarian<br>Maks 10 scroll</div></div>
-                <div class="pricing-card popular"><div class="tier">Basic</div><div class="price">Rp 79K</div><div class="details">100x pencarian<br>Maks 20 scroll</div></div>
-                <div class="pricing-card"><div class="tier">Pro</div><div class="price">Rp 179K</div><div class="details">300x pencarian<br>Maks 40 scroll</div></div>
-                <div class="pricing-card"><div class="tier">Bisnis</div><div class="price">Rp 349K</div><div class="details">1000x pencarian<br>Maks 50 scroll</div></div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Logged in -->
-    <section id="user-section" class="hidden">
-        <!-- Status -->
+<!-- Main Content -->
+<main class="main">
+    <!-- Overview Tab -->
+    <div class="tab-panel active" id="tab-overview">
         <div class="card">
             <div class="welcome" id="welcome-text">Halo!</div>
-            <div class="welcome-sub" id="status-text">Memuat status...</div>
-            <div class="stats-grid" id="stats-grid"></div>
+            <div class="welcome-sub" id="status-sub">Memuat status lisensi...</div>
+            <div class="stats" id="stats-grid"></div>
         </div>
-
-        <!-- API Key -->
         <div class="card">
-            <h2>API Key Kamu</h2>
-            <div class="api-key-box">
-                <span id="api-key-display">---</span>
-                <button class="copy-btn" onclick="copyApiKey()">Copy</button>
-            </div>
-            <p style="font-size:13px;color:#94a3b8;">Gunakan API key ini di Desktop App GMaps Scraper.</p>
+            <h2>API Key</h2>
+            <div class="api-box"><span id="api-key-display">---</span><button onclick="copyKey()">Copy</button></div>
+            <p style="font-size:12px;color:var(--dim);margin-top:8px;">Gunakan API key ini di Desktop App.</p>
         </div>
-
-        <!-- Beli Paket -->
-        <div class="card" id="buy-section">
+        <div class="card">
             <h2>Beli Paket</h2>
-            <div class="pricing-grid" id="pricing-grid-loggedin"></div>
+            <div class="pricing" id="pricing-grid"></div>
         </div>
+    </div>
 
-        <!-- Riwayat Transaksi -->
+    <!-- History Tab -->
+    <div class="tab-panel" id="tab-history">
         <div class="card">
-            <h2>Riwayat Transaksi</h2>
-            <div id="txn-list"><div class="empty">Memuat...</div></div>
+            <h2>Riwayat Scraping</h2>
+            <table><thead><tr><th>Keyword</th><th>Hasil</th><th>Tanggal</th></tr></thead><tbody id="history-table"></tbody></table>
+            <div class="pagination" id="history-pagination"></div>
         </div>
-    </section>
+    </div>
+
+    <!-- Invoices Tab -->
+    <div class="tab-panel" id="tab-invoices">
+        <div class="card">
+            <h2>Invoice & Transaksi</h2>
+            <table><thead><tr><th>Invoice</th><th>Paket</th><th>Jumlah</th><th>Status</th><th>Tanggal</th><th></th></tr></thead><tbody id="invoice-table"></tbody></table>
+            <div class="pagination" id="invoice-pagination"></div>
+        </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div class="tab-panel" id="tab-settings">
+        <div class="card">
+            <h2>Pengaturan Profil</h2>
+            <div style="max-width:400px;">
+                <label style="display:block;font-size:13px;color:var(--dim);margin-bottom:6px;">Nama</label>
+                <input type="text" id="settings-name" placeholder="Nama kamu">
+                <div class="flex" style="margin-top:12px;">
+                    <button class="btn btn-blue" onclick="saveProfile()">Simpan</button>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Reset API Key</h2>
+            <p style="font-size:13px;color:var(--dim);margin-bottom:12px;">Key lama akan dinonaktifkan. Desktop App harus di-update dengan key baru.</p>
+            <button class="btn btn-danger btn-sm" onclick="resetMyKey()">Reset API Key</button>
+        </div>
+    </div>
 </main>
 
+<!-- Toast -->
+<div id="toast"></div>
+
 <script>
-const token = localStorage.getItem("token");
-const user = JSON.parse(localStorage.getItem("user") || "null");
-const guestSec = document.getElementById("guest-section");
-const userSec = document.getElementById("user-section");
+const TOKEN = localStorage.getItem("token");
+const USER = JSON.parse(localStorage.getItem("user") || "null");
+
+if (!TOKEN || !USER) { window.location.href = "/login"; }
 
 const packages = {
-    starter: { name: "STARTER", price: "Rp 29K", quota: 25, scrolls: 10 },
-    basic: { name: "BASIC", price: "Rp 79K", quota: 100, scrolls: 20 },
-    pro: { name: "PRO", price: "Rp 179K", quota: 300, scrolls: 40 },
-    bisnis: { name: "BISNIS", price: "Rp 349K", quota: 1000, scrolls: 50 },
+    starter:{ name:"STARTER", price:"Rp 29K", quota:25, scrolls:10 },
+    basic:{ name:"BASIC", price:"Rp 79K", quota:100, scrolls:20 },
+    pro:{ name:"PRO", price:"Rp 179K", quota:300, scrolls:40 },
+    bisnis:{ name:"BISNIS", price:"Rp 349K", quota:1000, scrolls:50 },
 };
 
-function logout() { localStorage.clear(); window.location.reload(); }
-function copyApiKey() {
-    const key = document.getElementById("api-key-display").textContent;
-    navigator.clipboard.writeText(key).then(() => alert("API key dicopy!"));
+// ── Toast ──
+function toast(msg, type="success") {
+    const el = document.createElement("div");
+    el.className = "toast toast-"+type; el.textContent = msg;
+    document.getElementById("toast").appendChild(el);
+    setTimeout(() => el.remove(), 3500);
 }
 
-async function loadStatus() {
-    if (!token) return;
-    const resp = await fetch("/api/license/status", { headers: { Authorization: "Bearer " + token } });
-    if (!resp.ok) { if (resp.status === 401) { logout(); } return; }
-    const data = await resp.json();
-
-    document.getElementById("welcome-text").textContent = "Halo, " + (user?.name || user?.email || "User") + "!";
-    document.getElementById("api-key-display").textContent = data.api_key || "---";
-
-    const lic = data.license;
-    let statusHtml = "";
-    if (lic) {
-        statusHtml = `
-            <div class="stat-box"><div class="value">${lic.remaining}</div><div class="label">Sisa Quota</div></div>
-            <div class="stat-box"><div class="value">${lic.package.toUpperCase()}</div><div class="label">Paket Aktif</div></div>
-            <div class="stat-box"><div class="value">${lic.total_quota}</div><div class="label">Total Quota</div></div>
-            <div class="stat-box"><div class="value">${lic.max_scrolls}</div><div class="label">Max Scroll</div></div>`;
-    } else {
-        statusHtml = `<div class="stat-box" style="grid-column:1/-1"><div class="value">-</div><div class="label">Belum punya lisensi aktif</div></div>`;
-    }
-    document.getElementById("stats-grid").innerHTML = statusHtml;
-
-    // Render pricing
-    const grid = document.getElementById("pricing-grid-loggedin");
-    grid.innerHTML = Object.entries(packages).map(([key, p]) => `
-        <div class="pricing-card" onclick="buyPackage('${key}')">
-            <div class="tier">${p.name}</div>
-            <div class="price">${p.price}</div>
-            <div class="details">${p.quota}x pencarian<br>Maks ${p.scrolls} scroll</div>
-            <span class="buy-btn">Beli</span>
-        </div>
-    `).join("");
+// ── API ──
+async function api(path, method="GET", body=null) {
+    const opts = { method, headers:{ Authorization:"Bearer "+TOKEN } };
+    if (body) opts.body = body;
+    const resp = await fetch(path, opts);
+    if (resp.status===401) { localStorage.clear(); window.location.href="/login"; return {error:"unauth"}; }
+    return resp.json();
 }
 
-async function buyPackage(key) {
-    if (!token) { window.location.href = "/login"; return; }
-    const fd = new FormData();
-    fd.append("package_key", key);
-    const resp = await fetch("/api/payment/create", { method: "POST", headers: { Authorization: "Bearer " + token }, body: fd });
-    const data = await resp.json();
-    if (data.payment_url) {
-        window.open(data.payment_url, "_blank");
-        alert("Selesaikan pembayaran di tab baru. Refresh halaman ini setelah bayar.");
-    } else {
-        alert("Gagal: " + (data.detail || "Unknown error"));
-    }
+// ── Tab ──
+function showTab(tab) {
+    document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
+    document.getElementById("tab-"+tab).classList.add("active");
+    document.querySelectorAll(".nav-item").forEach(b=>b.classList.remove("active"));
+    document.getElementById("nav-"+tab).classList.add("active");
+    if (tab==="overview") loadOverview();
+    if (tab==="history") loadHistory();
+    if (tab==="invoices") loadInvoices();
 }
 
-async function loadTransactions() {
-    if (!token) return;
-    try {
-        const resp = await fetch("/api/admin/transactions", { headers: { Authorization: "Bearer " + token } });
-        const data = await resp.json();
-        const list = document.getElementById("txn-list");
-        if (!data.transactions || data.transactions.length === 0) {
-            list.innerHTML = '<div class="empty">Belum ada transaksi</div>';
-            return;
-        }
-        list.innerHTML = data.transactions.map(t => `
-            <div class="row">
-                <span><strong>${t.product.toUpperCase()}</strong> — Rp ${t.amount.toLocaleString()}</span>
-                <span style="color:${t.status==='success'?'#22c55e':t.status==='failed'?'#ef4444':'#f59e0b'}">${t.status.toUpperCase()}</span>
-                <span style="color:#94a3b8;font-size:13px;">${t.payment_method||'-'}</span>
-            </div>
-        `).join("");
-    } catch (e) { /* ignore */ }
+// ── Overview ──
+async function loadOverview() {
+    document.getElementById("sidebar-name").textContent = USER.name||USER.email.split("@")[0];
+    document.getElementById("sidebar-email").textContent = USER.email;
+    document.getElementById("welcome-text").textContent = "Halo, "+(USER.name||USER.email.split("@")[0])+"!";
+    const d = await api("/api/license/status");
+    if (d.error) return;
+    document.getElementById("api-key-display").textContent = d.api_key||"---";
+    const lic = d.license;
+    document.getElementById("stats-grid").innerHTML = lic ? `
+        <div class="stat"><div class="val">${lic.remaining}</div><div class="lbl">Sisa Quota</div></div>
+        <div class="stat"><div class="val">${lic.package.toUpperCase()}</div><div class="lbl">Paket</div></div>
+        <div class="stat"><div class="val">${lic.total_quota}</div><div class="lbl">Total Quota</div></div>
+        <div class="stat"><div class="val">${lic.max_scrolls}</div><div class="lbl">Max Scroll</div></div>
+    ` : `<div class="stat" style="grid-column:1/-1"><div class="val">-</div><div class="lbl">Belum punya lisensi</div></div>`;
+    document.getElementById("status-sub").textContent = d.is_banned ? "Akun dibanned" : (lic ? `Paket ${lic.package.toUpperCase()} aktif` : "Silakan beli paket");
+    document.getElementById("pricing-grid").innerHTML = Object.entries(packages).map(([k,p])=>`
+        <div class="price-card" onclick="buy('${k}')">
+            <div class="tier">${p.name}</div><div class="amt">${p.price}</div>
+            <div class="det">${p.quota}x pencarian<br>Maks ${p.scrolls} scroll</div>
+            <span class="buy">Beli</span>
+        </div>`).join("");
 }
 
-if (token && user) {
-    guestSec.classList.add("hidden");
-    userSec.classList.remove("hidden");
-    document.getElementById("user-name").textContent = user.email;
-    loadStatus();
-    loadTransactions();
+function copyKey() {
+    navigator.clipboard.writeText(document.getElementById("api-key-display").textContent).then(()=>toast("API key dicopy!"));
 }
+async function buy(key) {
+    const fd = new FormData(); fd.append("package_key", key);
+    const d = await api("/api/payment/create", "POST", fd);
+    if (d.payment_url) { window.open(d.payment_url,"_blank"); toast("Selesaikan pembayaran di tab baru. Refresh setelah bayar."); }
+    else { toast(d.detail||"Gagal","error"); }
+}
+
+// ── History ──
+async function loadHistory(page=1) {
+    const d = await api(`/api/user/history?page=${page}`);
+    const tbody = document.getElementById("history-table");
+    if (!d.logs||d.logs.length===0) { tbody.innerHTML=`<tr><td colspan="3" class="empty">Belum ada riwayat scraping</td></tr>`; return; }
+    tbody.innerHTML = d.logs.map(l=>`<tr><td>${esc(l.keyword||"-")}</td><td>${l.results_count||0}</td><td>${l.created_at?.slice(0,16)||"-"}</td></tr>`).join("");
+    let p="";for(let i=1;i<=d.total_pages;i++)p+=`<button class="${i===page?'on':''}" onclick="loadHistory(${i})">${i}</button>`;
+    document.getElementById("history-pagination").innerHTML=p;
+}
+
+// ── Invoices ──
+async function loadInvoices(page=1) {
+    const d = await api(`/api/user/invoices?page=${page}`);
+    const tbody = document.getElementById("invoice-table");
+    if (!d.invoices||d.invoices.length===0) { tbody.innerHTML=`<tr><td colspan="6" class="empty">Belum ada invoice</td></tr>`; return; }
+    tbody.innerHTML = d.invoices.map(t=>`
+        <tr>
+            <td>${t.invoice_number||"-"}</td><td>${t.product.toUpperCase()}</td><td>Rp ${t.amount.toLocaleString()}</td>
+            <td><span class="badge badge-${t.status==='success'?'green':t.status==='failed'?'red':'yellow'}">${t.status.toUpperCase()}</span></td>
+            <td>${t.created_at?.slice(0,16)||"-"}</td>
+            <td>${t.status==='success'?`<button class="btn btn-outline btn-sm" onclick="window.open('/api/user/invoice/${t.id}/download','_blank')">Download</button>`:""}</td>
+        </tr>`).join("");
+    let p="";for(let i=1;i<=d.total_pages;i++)p+=`<button class="${i===page?'on':''}" onclick="loadInvoices(${i})">${i}</button>`;
+    document.getElementById("invoice-pagination").innerHTML=p;
+}
+
+// ── Settings ──
+function showTab(tab) {
+    document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
+    document.getElementById("tab-"+tab).classList.add("active");
+    document.querySelectorAll(".nav-item").forEach(b=>b.classList.remove("active"));
+    document.getElementById("nav-"+tab).classList.add("active");
+    if (tab==="overview") loadOverview();
+    if (tab==="history") loadHistory();
+    if (tab==="invoices") loadInvoices();
+    if (tab==="settings") { document.getElementById("settings-name").value = USER.name||""; }
+}
+
+async function saveProfile() {
+    const name = document.getElementById("settings-name").value.trim();
+    if (!name) return;
+    const fd = new FormData(); fd.append("name", name);
+    const d = await api("/api/user/profile", "POST", fd);
+    if (d.success) { USER.name = name; localStorage.setItem("user", JSON.stringify(USER)); loadOverview(); toast("Profil disimpan!"); }
+    else { toast(d.detail||"Gagal","error"); }
+}
+
+async function resetMyKey() {
+    if (!confirm("Reset API key? Key lama akan dinonaktifkan. Desktop App harus di-update.")) return;
+    const d = await api("/api/user/reset-key", "POST", new FormData());
+    if (d.success) { document.getElementById("api-key-display").textContent = d.new_api_key; toast("API key baru: "+d.new_api_key); loadOverview(); }
+    else { toast(d.detail||"Gagal","error"); }
+}
+
+function esc(s){ if(!s)return"";const d=document.createElement("div");d.textContent=s;return d.innerHTML; }
+
+// Init
+loadOverview();
 </script>
 </body>
 </html>

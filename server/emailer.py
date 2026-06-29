@@ -1,0 +1,102 @@
+"""Email sender via Gmail SMTP — OTP, transaction confirmations, welcome emails."""
+
+import os
+import smtplib
+import threading
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "465"))
+SMTP_FROM = os.environ.get("SMTP_FROM", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+
+
+def _send(email: MIMEMultipart):
+    """Send email in background thread — non-blocking."""
+    def _do():
+        try:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as s:
+                s.login(SMTP_FROM, SMTP_PASSWORD)
+                s.send_message(email)
+            print(f"   [EMAIL] Sent to {email['To']} — {email['Subject']}")
+        except Exception as e:
+            print(f"   [EMAIL ERROR] {e}")
+
+    if not SMTP_FROM or not SMTP_PASSWORD:
+        print(f"   [EMAIL SKIP] SMTP not configured — would send: {email['Subject']} to {email['To']}")
+        return
+    threading.Thread(target=_do, daemon=True).start()
+
+
+def send_otp_email(to_email: str, code: str):
+    """Send OTP verification code."""
+    msg = MIMEMultipart()
+    msg["Subject"] = "Kode OTP Login — GMaps Scraper"
+    msg["From"] = SMTP_FROM
+    msg["To"] = to_email
+
+    body = f"""Halo,
+
+Kode OTP login kamu: {code}
+
+Kode ini expired dalam 5 menit.
+
+Jika kamu tidak meminta kode ini, abaikan email ini.
+
+—
+GMaps Scraper"""
+    msg.attach(MIMEText(body, "plain"))
+    _send(msg)
+
+
+def send_welcome_email(to_email: str, name: str):
+    """Send welcome email after first login."""
+    msg = MIMEMultipart()
+    msg["Subject"] = "Selamat Datang di GMaps Scraper!"
+    msg["From"] = SMTP_FROM
+    msg["To"] = to_email
+
+    body = f"""Halo {name},
+
+Selamat datang di GMaps Scraper!
+
+Kamu sudah bisa langsung mencoba:
+• 10x scraping gratis (trial)
+• Desktop App untuk Windows
+• Export CSV
+
+Login ke dashboard: https://gmapsscraper-production-36cd.up.railway.app/dashboard
+
+Kalau ada pertanyaan, balas email ini aja.
+
+—
+GMaps Scraper"""
+    msg.attach(MIMEText(body, "plain"))
+    _send(msg)
+
+
+def send_payment_confirmation(to_email: str, name: str, package_name: str, amount: int, invoice_no: str):
+    """Send payment confirmation after successful transaction."""
+    msg = MIMEMultipart()
+    msg["Subject"] = f"Pembayaran Berhasil — {package_name}"
+    msg["From"] = SMTP_FROM
+    msg["To"] = to_email
+
+    body = f"""Halo {name},
+
+Pembayaran kamu sudah berhasil dikonfirmasi.
+
+Detail:
+• Paket: {package_name}
+• Jumlah: Rp {amount:,}
+• Invoice: {invoice_no}
+
+Quota sudah aktif dan siap digunakan di Desktop App.
+
+Login: https://gmapsscraper-production-36cd.up.railway.app/dashboard
+
+—
+GMaps Scraper"""
+    msg.attach(MIMEText(body, "plain"))
+    _send(msg)
