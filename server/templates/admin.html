@@ -121,7 +121,7 @@
 <script>
 const TOKEN = localStorage.getItem("token");
 const USER = JSON.parse(localStorage.getItem("user")||"null");
-if(!TOKEN||!USER||USER.role!=="admin"){document.body.innerHTML='<div style="display:flex;justify-content:center;align-items:center;height:100vh;color:var(--red);font-size:20px;">Access Denied — Admin Only</div>';throw new Error("Not admin");}
+if(!TOKEN){window.location.href="/login";}if(!USER||USER.role!=="admin"){document.body.innerHTML='<div style="display:flex;justify-content:center;align-items:center;height:100vh;color:#ef4444;font-size:20px;background:#0a0f1f;flex-direction:column;"><p>Access Denied — Admin Only</p><a href="/dashboard" style="color:#3b82f6;margin-top:16px;">Kembali ke Dashboard</a></div>';throw new Error("Not admin");}
 
 function switchTab(t){document.querySelectorAll(".tab").forEach(e=>e.classList.remove("active"));document.getElementById("tab-"+t).classList.add("active");document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));event.target.classList.add("active");if(t==="dashboard"){loadDashboard();loadRecentTxns();}if(t==="users")loadUsers();if(t==="transactions")loadTransactions();}
 async function api(p,m="GET",b=null){const o={method:m,headers:{Authorization:"Bearer "+TOKEN}};if(b)o.body=b;const r=await fetch(p,o);if(r.status===401){localStorage.clear();window.location.href="/login";}return r.json();}

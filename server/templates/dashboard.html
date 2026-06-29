@@ -102,6 +102,9 @@
         <button class="nav-item" onclick="showTab('history')" id="nav-history"><span class="nav-icon">📋</span> Riwayat Scraping</button>
         <button class="nav-item" onclick="showTab('invoices')" id="nav-invoices"><span class="nav-icon">🧾</span> Invoice</button>
         <button class="nav-item" onclick="showTab('settings')" id="nav-settings"><span class="nav-icon">⚙️</span> Settings</button>
+        <div id="admin-link" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+            <a href="/admin" class="nav-item" style="color:var(--red);"><span class="nav-icon">🔒</span> Admin Panel</a>
+        </div>
     </nav>
     <div class="sidebar-user">
         <div class="name" id="sidebar-name">---</div>
@@ -302,6 +305,9 @@ async function resetMyKey() {
 function esc(s){ if(!s)return"";const d=document.createElement("div");d.textContent=s;return d.innerHTML; }
 
 // Init
+if (USER && USER.role === "admin") {
+    document.getElementById("admin-link").style.display = "block";
+}
 loadOverview();
 </script>
 </body>
