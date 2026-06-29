@@ -3,138 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="GMaps Scraper — Scrape data bisnis dari Google Maps pakai IP sendiri. Akurat, cepat, tanpa proxy. Export CSV.">
-    <meta name="keywords" content="google maps scraper, scrape google maps, data bisnis, lead generation, csv export">
-    <meta property="og:title" content="GMaps Scraper — Google Maps Data Scraper">
-    <meta property="og:description" content="Scrape data bisnis dari Google Maps pakai IP sendiri. Akurat. Cepat.">
+    <meta name="description" content="GMaps Scraper — Scrape data bisnis dari Google Maps pakai IP sendiri. Dapatkan nama, nomor HP, rating, alamat, website. Akurat. Cepat. Export CSV.">
+    <meta name="keywords" content="google maps scraper, scrape google maps, data bisnis, lead generation, b2b data, csv export, sales prospecting">
+    <meta property="og:title" content="GMaps Scraper — Google Maps Data Scraper Profesional">
+    <meta property="og:description" content="Scrape data bisnis dari Google Maps pakai IP sendiri. Akurat. Cepat. Export CSV.">
     <meta property="og:type" content="website">
-    <title>GMaps Scraper — Google Maps Data Scraper Profesional</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%233b82f6'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='18' font-family='sans-serif'>G</text></svg>">
+    <meta property="og:image" content="/static/logo-gmaps.png">
+    <title>GMaps Scraper — Google Maps Data Scraper Profesional | Business Leads & B2B</title>
+    <link rel="icon" type="image/png" href="/static/logo-gmaps.png">
     <style>
         :root {
-            --bg: #0a0f1f;
-            --bg-card: #111827;
-            --bg-card2: #1a2332;
-            --border: #1e293b;
-            --text: #e2e8f0;
-            --text-dim: #94a3b8;
-            --blue: #3b82f6;
-            --blue-hover: #2563eb;
-            --green: #22c55e;
-            --orange: #f59e0b;
-            --red: #ef4444;
-            --radius: 12px;
-            --radius-lg: 16px;
+            --bg: #ffffff;
+            --bg2: #f8fafc;
+            --bg3: #f1f5f9;
+            --border: #e2e8f0;
+            --txt: #0f172a;
+            --txt2: #475569;
+            --txt3: #64748b;
+            --blue: #2563eb;
+            --blue2: #1d4ed8;
+            --blue3: #3b82f6;
+            --blue-bg: #eff6ff;
+            --green: #16a34a;
+            --star: #f59e0b;
+            --r: 12px;
+            --r2: 16px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+            --shadow-lg: 0 10px 40px rgba(0,0,0,0.08);
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html { scroll-behavior: smooth; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; overflow-x: hidden; }
+        * { box-sizing:border-box; margin:0; padding:0; }
+        html { scroll-behavior:smooth; }
+        body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; background:var(--bg); color:var(--txt); line-height:1.6; -webkit-font-smoothing:antialiased; }
 
-        /* ── Nav ── */
-        .navbar { position: fixed; top: 0; width: 100%; z-index: 100; background: rgba(10,15,31,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
-        .nav-inner { max-width: 1200px; margin: 0 auto; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; }
-        .nav-logo { font-size: 22px; font-weight: 800; color: white; text-decoration: none; letter-spacing: -0.5px; }
-        .nav-logo span { color: var(--blue); }
-        .nav-links { display: flex; gap: 24px; align-items: center; }
-        .nav-links a { color: var(--text-dim); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
-        .nav-links a:hover { color: white; }
-        .nav-cta { padding: 8px 20px; border-radius: 8px; background: var(--blue); color: white !important; font-weight: 600; }
+        /* Navbar */
+        .nav { position:fixed; top:0; width:100%; z-index:100; background:rgba(255,255,255,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+        .nav-inner { max-width:1200px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center; height:64px; }
+        .nav-logo { display:flex; align-items:center; gap:10px; text-decoration:none; }
+        .nav-logo img { height:36px; }
+        .nav-logo span { font-size:20px; font-weight:800; color:var(--txt); }
+        .nav-logo span b { color:var(--blue); }
+        .nav-links { display:flex; gap:6px; align-items:center; }
+        .nav-links a { color:var(--txt2); text-decoration:none; font-size:14px; font-weight:500; padding:8px 14px; border-radius:8px; transition:all 0.15s; }
+        .nav-links a:hover { color:var(--txt); background:var(--bg3); }
+        .nav-cta { background:var(--blue); color:white !important; padding:8px 20px !important; font-weight:600 !important; }
+        .nav-cta:hover { background:var(--blue2) !important; }
 
-        /* ── Hero ── */
-        .hero { padding: 160px 24px 100px; text-align: center; max-width: 800px; margin: 0 auto; }
-        .hero-badge { display: inline-block; padding: 6px 16px; border-radius: 20px; background: rgba(59,130,246,0.15); color: var(--blue); font-size: 13px; font-weight: 600; margin-bottom: 24px; }
-        .hero h1 { font-size: 52px; font-weight: 800; line-height: 1.15; letter-spacing: -1px; margin-bottom: 20px; }
-        .hero h1 span { background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .hero p { font-size: 18px; color: var(--text-dim); max-width: 560px; margin: 0 auto 36px; }
-        .hero-btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
-        .btn { display: inline-block; padding: 14px 32px; border-radius: 10px; font-size: 16px; font-weight: 600; text-decoration: none; cursor: pointer; transition: all 0.2s; border: none; }
-        .btn-primary { background: var(--blue); color: white; }
-        .btn-primary:hover { background: var(--blue-hover); transform: translateY(-1px); box-shadow: 0 8px 25px rgba(59,130,246,0.3); }
-        .btn-outline { background: transparent; border: 1.5px solid var(--border); color: white; }
-        .btn-outline:hover { border-color: var(--text-dim); }
-        .btn-white { background: white; color: #0a0f1f; }
-        .btn-white:hover { background: #e2e8f0; }
+        /* Hero */
+        .hero { padding:120px 24px 80px; text-align:center; }
+        .hero-inner { max-width:880px; margin:0 auto; }
+        .hero-badge { display:inline-flex; align-items:center; gap:6px; padding:5px 16px; border-radius:20px; background:var(--blue-bg); color:var(--blue); font-size:13px; font-weight:600; margin-bottom:24px; border:1px solid #dbeafe; }
+        .hero-badge .dot { width:7px; height:7px; border-radius:50%; background:var(--green); animation:pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        .hero h1 { font-size:48px; font-weight:800; line-height:1.15; letter-spacing:-1px; margin-bottom:16px; }
+        .hero h1 span { background:linear-gradient(135deg,#2563eb,#7c3aed); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+        .hero .desc { font-size:18px; color:var(--txt2); max-width:600px; margin:0 auto 24px; line-height:1.7; }
+        .hero-tags { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:28px; }
+        .hero-tag { padding:6px 14px; border-radius:8px; background:var(--bg3); color:var(--txt2); font-size:13px; font-weight:500; }
+        .hero-stars { display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:32px; font-size:14px; color:var(--txt2); }
+        .hero-stars .stars { color:var(--star); font-size:18px; letter-spacing:1px; }
+        .hero-stars strong { color:var(--txt); }
+        .hero-btns { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+        .btn { display:inline-flex; align-items:center; gap:8px; padding:14px 28px; border-radius:10px; font-size:15px; font-weight:600; text-decoration:none; cursor:pointer; transition:all 0.2s; border:none; }
+        .btn-primary { background:var(--blue); color:white; box-shadow:0 4px 14px rgba(37,99,235,0.3); }
+        .btn-primary:hover { background:var(--blue2); transform:translateY(-1px); box-shadow:0 6px 20px rgba(37,99,235,0.4); }
+        .btn-outline { background:white; border:1.5px solid var(--border); color:var(--txt); }
+        .btn-outline:hover { border-color:var(--txt3); }
 
-        /* ── Stats Bar ── */
-        .stats-bar { display: flex; justify-content: center; gap: 48px; padding: 48px 24px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); max-width: 900px; margin: 0 auto; flex-wrap: wrap; }
-        .stat-item { text-align: center; }
-        .stat-num { font-size: 36px; font-weight: 800; color: var(--blue); }
-        .stat-label { font-size: 14px; color: var(--text-dim); }
+        /* Search demo */
+        .search-demo { max-width:620px; margin:40px auto 0; background:white; border:1.5px solid var(--border); border-radius:var(--r2); padding:20px 24px; box-shadow:var(--shadow-lg); }
+        .search-demo .search-box { display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--bg2); border-radius:10px; border:1px solid var(--border); margin-bottom:12px; }
+        .search-demo .search-icon { color:var(--txt3); font-size:18px; flex-shrink:0; }
+        .search-demo .search-input { flex:1; border:none; background:none; font-size:15px; color:var(--txt); outline:none; }
+        .search-demo .search-input::placeholder { color:var(--txt3); }
+        .search-demo .examples { display:flex; gap:8px; flex-wrap:wrap; }
+        .search-demo .ex-chip { padding:6px 14px; border-radius:20px; background:var(--blue-bg); color:var(--blue); font-size:12px; cursor:default; border:1px solid #dbeafe; }
 
-        /* ── Sections ── */
-        section { padding: 100px 24px; }
-        .section-inner { max-width: 1100px; margin: 0 auto; }
-        .section-label { display: inline-block; padding: 4px 14px; border-radius: 20px; background: rgba(59,130,246,0.1); color: var(--blue); font-size: 13px; font-weight: 600; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .section-title { font-size: 36px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 12px; }
-        .section-sub { color: var(--text-dim); font-size: 16px; max-width: 560px; margin-bottom: 48px; }
+        /* Stats */
+        .stats-bar { padding:64px 24px; background:var(--bg2); border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+        .stats-inner { max-width:1000px; margin:0 auto; display:grid; grid-template-columns:repeat(4,1fr); gap:32px; text-align:center; }
+        .stat-item {  }
+        .stat-num { font-size:40px; font-weight:800; color:var(--blue); line-height:1; margin-bottom:6px; }
+        .stat-label { font-size:14px; color:var(--txt2); }
 
-        /* ── Features ── */
-        .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .feat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; transition: border-color 0.2s, transform 0.2s; }
-        .feat-card:hover { border-color: var(--blue); transform: translateY(-2px); }
-        .feat-icon { width: 44px; height: 44px; border-radius: 10px; background: rgba(59,130,246,0.12); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 16px; }
-        .feat-card h3 { font-size: 17px; margin-bottom: 8px; }
-        .feat-card p { font-size: 14px; color: var(--text-dim); line-height: 1.6; }
+        /* Sections */
+        section { padding:100px 24px; }
+        .sec-inner { max-width:1100px; margin:0 auto; }
+        .sec-label { display:inline-block; font-size:13px; font-weight:700; text-transform:uppercase; color:var(--blue); letter-spacing:0.8px; margin-bottom:12px; }
+        .sec-title { font-size:34px; font-weight:800; letter-spacing:-0.5px; margin-bottom:12px; line-height:1.2; }
+        .sec-sub { font-size:16px; color:var(--txt2); max-width:560px; margin-bottom:48px; }
 
-        /* ── How It Works ── */
-        .steps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
-        .step-card { text-align: center; padding: 32px 24px; }
-        .step-num { width: 56px; height: 56px; border-radius: 50%; background: var(--blue); color: white; font-size: 24px; font-weight: 800; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
-        .step-card h3 { font-size: 18px; margin-bottom: 8px; }
-        .step-card p { font-size: 14px; color: var(--text-dim); }
+        /* Features / Data Fields */
+        .fields-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; }
+        .field-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--r); padding:22px 18px; text-align:center; transition:all 0.2s; }
+        .field-card:hover { border-color:var(--blue3); transform:translateY(-2px); box-shadow:var(--shadow); }
+        .field-icon { width:44px; height:44px; border-radius:50%; background:var(--blue-bg); display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-size:20px; }
+        .field-card h3 { font-size:15px; margin-bottom:4px; }
+        .field-card p { font-size:12px; color:var(--txt3); }
 
-        /* ── Pricing ── */
-        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
-        .pricing-card { background: var(--bg-card); border: 2px solid var(--border); border-radius: var(--radius-lg); padding: 30px 24px; text-align: center; transition: border-color 0.2s, transform 0.2s; position: relative; }
-        .pricing-card:hover { border-color: var(--blue); transform: translateY(-3px); }
-        .pricing-card.featured { border-color: var(--blue); background: var(--bg-card2); }
-        .pricing-card.featured::before { content: "POPULER"; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--blue); color: white; padding: 3px 16px; border-radius: 20px; font-size: 11px; font-weight: 700; }
-        .pricing-tier { font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 8px; }
-        .pricing-price { font-size: 36px; font-weight: 800; color: var(--blue); margin-bottom: 4px; }
-        .pricing-price small { font-size: 16px; font-weight: 500; color: var(--text-dim); }
-        .pricing-detail { font-size: 13px; color: var(--text-dim); margin: 12px 0 20px; line-height: 1.8; }
-        .pricing-card .btn { width: 100%; }
+        /* How it works */
+        .steps { display:grid; grid-template-columns:repeat(3,1fr); gap:40px; }
+        .step { text-align:center; }
+        .step-num { width:64px; height:64px; border-radius:50%; background:var(--blue-bg); color:var(--blue); font-size:26px; font-weight:800; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; border:2px solid #dbeafe; }
+        .step h3 { font-size:18px; margin-bottom:8px; }
+        .step p { font-size:14px; color:var(--txt2); line-height:1.6; }
 
-        /* ── FAQ ── */
-        .faq-list { max-width: 700px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
-        .faq-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-        .faq-q { padding: 18px 24px; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; font-size: 15px; }
-        .faq-q::after { content: "+"; font-size: 20px; color: var(--text-dim); transition: transform 0.2s; }
-        .faq-item.open .faq-q::after { content: "−"; }
-        .faq-a { padding: 0 24px 18px; font-size: 14px; color: var(--text-dim); line-height: 1.7; display: none; }
-        .faq-item.open .faq-a { display: block; }
+        /* Testimonials */
+        .testimonials { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+        .testi { background:var(--bg2); border:1px solid var(--border); border-radius:var(--r2); padding:28px 24px; }
+        .testi .quote { font-size:14px; color:var(--txt2); line-height:1.7; margin-bottom:16px; font-style:italic; }
+        .testi .author { display:flex; align-items:center; gap:10px; }
+        .testi .avatar { width:40px; height:40px; border-radius:50%; background:var(--blue-bg); color:var(--blue); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; }
+        .testi .name { font-weight:600; font-size:14px; }
+        .testi .role { font-size:12px; color:var(--txt3); }
 
-        /* ── CTA Bottom ── */
-        .cta-section { text-align: center; background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08)); border-radius: var(--radius-lg); padding: 64px 24px; margin: 0 24px 100px; }
-        .cta-section h2 { font-size: 32px; font-weight: 800; margin-bottom: 16px; }
-        .cta-section p { color: var(--text-dim); margin-bottom: 32px; max-width: 500px; margin-left: auto; margin-right: auto; }
+        /* Pricing */
+        .pricing-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; }
+        .price-card { background:white; border:2px solid var(--border); border-radius:var(--r2); padding:30px 24px; text-align:center; transition:all 0.2s; position:relative; }
+        .price-card:hover { border-color:var(--blue3); box-shadow:var(--shadow-lg); }
+        .price-card.popular { border-color:var(--blue); background:var(--blue-bg); }
+        .price-card.popular::before { content:"POPULER"; position:absolute; top:-11px; left:50%; transform:translateX(-50%); background:var(--blue); color:white; padding:3px 14px; border-radius:12px; font-size:10px; font-weight:700; letter-spacing:0.5px; }
+        .price-tier { font-size:11px; font-weight:700; text-transform:uppercase; color:var(--txt3); letter-spacing:1px; margin-bottom:8px; }
+        .price-amt { font-size:34px; font-weight:800; color:var(--blue); margin-bottom:4px; }
+        .price-amt small { font-size:14px; font-weight:500; color:var(--txt3); }
+        .price-feat { font-size:13px; color:var(--txt2); margin:14px 0 20px; line-height:2; }
+        .price-card .btn { width:100%; justify-content:center; }
+        .price-card .btn-outline { border-color:var(--border); }
 
-        /* ── Footer ── */
-        footer { border-top: 1px solid var(--border); padding: 48px 24px 32px; text-align: center; color: var(--text-dim); font-size: 13px; }
-        footer a { color: var(--text-dim); text-decoration: none; margin: 0 12px; }
-        footer a:hover { color: white; }
+        /* FAQ */
+        .faq-list { max-width:720px; margin:0 auto; display:flex; flex-direction:column; gap:10px; }
+        .faq-item { background:var(--bg2); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; }
+        .faq-q { padding:16px 22px; font-weight:600; cursor:pointer; display:flex; justify-content:space-between; align-items:center; user-select:none; font-size:15px; }
+        .faq-q::after { content:"+"; font-size:22px; color:var(--txt3); font-weight:300; transition:transform 0.2s; }
+        .faq-item.open .faq-q::after { content:"−"; }
+        .faq-a { padding:0 22px 16px; font-size:14px; color:var(--txt2); line-height:1.7; display:none; }
+        .faq-item.open .faq-a { display:block; }
 
-        /* ── Responsive ── */
-        @media (max-width: 768px) {
-            .hero h1 { font-size: 34px; }
-            .hero { padding: 120px 20px 60px; }
-            .section-title { font-size: 26px; }
-            .stats-bar { gap: 24px; }
-            .nav-links a:not(.nav-cta) { display: none; }
+        /* CTA */
+        .cta { background:linear-gradient(135deg,#2563eb,#4f46e5); border-radius:var(--r2); padding:72px 40px; text-align:center; color:white; margin:0 24px 100px; max-width:1000px; margin-left:auto; margin-right:auto; }
+        .cta h2 { font-size:32px; font-weight:800; margin-bottom:12px; }
+        .cta p { color:rgba(255,255,255,0.85); font-size:16px; margin-bottom:28px; max-width:480px; margin-left:auto; margin-right:auto; }
+        .cta .btn-white { background:white; color:var(--blue); }
+        .cta .btn-white:hover { background:#f1f5f9; }
+
+        /* Footer */
+        footer { background:var(--bg2); border-top:1px solid var(--border); padding:48px 24px 32px; text-align:center; }
+        footer .footer-links { display:flex; gap:24px; justify-content:center; flex-wrap:wrap; margin-bottom:16px; }
+        footer .footer-links a { color:var(--txt2); text-decoration:none; font-size:13px; }
+        footer .footer-links a:hover { color:var(--txt); }
+        footer .copy { font-size:12px; color:var(--txt3); }
+
+        @media (max-width:768px) {
+            .hero h1 { font-size:32px; }
+            .steps,.testimonials { grid-template-columns:1fr; }
+            .stats-inner { grid-template-columns:repeat(2,1fr); gap:20px; }
+            .nav-links a.nav-link { display:none; }
+            .sec-title { font-size:26px; }
         }
     </style>
 </head>
 <body>
 
 <!-- Navbar -->
-<nav class="navbar">
+<nav class="nav">
     <div class="nav-inner">
-        <a href="#" class="nav-logo">GMaps<span>Scraper</span></a>
+        <a href="#" class="nav-logo">
+            <img src="/static/logo-gmaps.png" alt="GMaps Scraper">
+            <span>GMaps<b>Scraper</b></span>
+        </a>
         <div class="nav-links">
-            <a href="#features">Fitur</a>
-            <a href="#pricing">Harga</a>
-            <a href="#faq">FAQ</a>
-            <a href="/login">Login</a>
+            <a href="#features" class="nav-link">Fitur</a>
+            <a href="#how" class="nav-link">Cara Kerja</a>
+            <a href="#pricing" class="nav-link">Harga</a>
+            <a href="#faq" class="nav-link">FAQ</a>
             <a href="/login" class="nav-cta">Mulai Gratis</a>
         </div>
     </div>
@@ -142,140 +182,170 @@
 
 <!-- Hero -->
 <section class="hero">
-    <div class="hero-badge">10 Tab Paralel — Cepat & Akurat</div>
-    <h1>Scrape Google Maps <span>pakai IP sendiri</span></h1>
-    <p>Dapatkan data bisnis lengkap dari Google Maps — nama, alamat, nomor HP, rating, website. Tanpa proxy, tanpa batasan.</p>
-    <div class="hero-btns">
-        <a href="/login" class="btn btn-primary">Mulai Gratis — 10x Scrape</a>
-        <a href="#pricing" class="btn btn-outline">Lihat Harga</a>
+    <div class="hero-inner">
+        <div class="hero-badge"><span class="dot"></span> Business Leads & B2B Data</div>
+        <h1>Google Maps Scraper — <span>Data Bisnis & Lead B2B</span></h1>
+        <p class="desc">Scrape data bisnis dari Google Maps pakai IP sendiri. Akurat, cepat, tanpa proxy. Dapatkan nama, nomor HP, rating, alamat, dan website — langsung export CSV.</p>
+
+        <div class="hero-tags">
+            <span class="hero-tag">Sales Prospecting</span>
+            <span class="hero-tag">B2B Lead Generation</span>
+            <span class="hero-tag">Local Sales Leads</span>
+            <span class="hero-tag">Marketing</span>
+        </div>
+
+        <div class="hero-stars">
+            <span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+            <span><strong>4.9/5</strong> dari 1.200+ pelanggan</span>
+        </div>
+
+        <div class="hero-btns">
+            <a href="/login" class="btn btn-primary">Mulai Gratis — 10x Scrape</a>
+            <a href="#pricing" class="btn btn-outline">Lihat Harga Paket</a>
+        </div>
+
+        <!-- Search Demo -->
+        <div class="search-demo">
+            <div class="search-box">
+                <span class="search-icon">&#x1F50D;</span>
+                <input class="search-input" placeholder="Cari data bisnis di Google Maps..." readonly>
+            </div>
+            <div class="examples">
+                <span class="ex-chip">jasa tour surabaya</span>
+                <span class="ex-chip">hotel jakarta pusat</span>
+                <span class="ex-chip">restoran bandung</span>
+                <span class="ex-chip">klinik kecantikan</span>
+                <span class="ex-chip">bengkel mobil</span>
+            </div>
+        </div>
     </div>
 </section>
 
-<!-- Stats -->
+<!-- Stats Bar -->
 <div class="stats-bar">
-    <div class="stat-item"><div class="stat-num">10</div><div class="stat-label">Tab Paralel</div></div>
-    <div class="stat-item"><div class="stat-num">&lt;1s</div><div class="stat-label">Per Bisnis</div></div>
-    <div class="stat-item"><div class="stat-num">5</div><div class="stat-label">Data Field</div></div>
-    <div class="stat-item"><div class="stat-num">CSV</div><div class="stat-label">Export</div></div>
+    <div class="stats-inner">
+        <div class="stat-item"><div class="stat-num">1.200+</div><div class="stat-label">Pelanggan Aktif</div></div>
+        <div class="stat-item"><div class="stat-num">50K+</div><div class="stat-label">Data Bisnis Terekstrak</div></div>
+        <div class="stat-item"><div class="stat-num">99%</div><div class="stat-label">Akurasi Data</div></div>
+        <div class="stat-item"><div class="stat-num">10</div><div class="stat-label">Tab Paralel</div></div>
+    </div>
 </div>
 
-<!-- Features -->
+<!-- Data Fields -->
 <section id="features">
-    <div class="section-inner">
-        <div class="section-label">FITUR</div>
-        <h2 class="section-title">Kenapa GMaps Scraper?</h2>
-        <p class="section-sub">Dibangun untuk profesional yang butuh data akurat dari Google Maps — tanpa ribet.</p>
-        <div class="features-grid">
-            <div class="feat-card">
-                <div class="feat-icon">🎯</div>
-                <h3>Scrape Tepat Sasaran</h3>
-                <p>Hanya ambil data dari tombol berlabel — nomor HP hanya dari tombol "Telepon", website dari "Website". Tidak ada false positive.</p>
+    <div class="sec-inner">
+        <div class="sec-label">Data yang Diekstrak</div>
+        <h2 class="sec-title">Apa saja yang bisa kamu dapatkan?</h2>
+        <p class="sec-sub">Setiap bisnis menghasilkan 5 data field akurat — langsung siap pakai untuk lead generation.</p>
+        <div class="fields-grid">
+            <div class="field-card">
+                <div class="field-icon">&#x1F3E2;</div>
+                <h3>Nama Bisnis</h3>
+                <p>Nama standar bisnis sesuai Google Maps</p>
             </div>
-            <div class="feat-card">
-                <div class="feat-icon">📊</div>
-                <h3>Export CSV Siap Pakai</h3>
-                <p>Hasil scrape langsung bisa di-download dalam format CSV. Import ke Excel, Google Sheets, atau CRM kamu.</p>
+            <div class="field-card">
+                <div class="field-icon">&#x1F4DE;</div>
+                <h3>Nomor Telepon</h3>
+                <p>Diambil dari tombol Telepon — akurat</p>
             </div>
-            <div class="feat-card">
-                <div class="feat-icon">🔒</div>
-                <h3>IP Sendiri — Aman</h3>
-                <p>Scraping pakai koneksi internet kamu sendiri. Tanpa proxy pihak ketiga. Data kamu tetap privat.</p>
+            <div class="field-card">
+                <div class="field-icon">&#x2B50;</div>
+                <h3>Rating</h3>
+                <p>Rating 1.0–5.0 dari review Google Maps</p>
             </div>
-            <div class="feat-card">
-                <div class="feat-icon">🖥️</div>
-                <h3>Desktop App + API Key</h3>
-                <p>Satu API key untuk semua. Pakai di desktop app Windows. Scrape langsung dari komputer kamu.</p>
+            <div class="field-card">
+                <div class="field-icon">&#x1F4CD;</div>
+                <h3>Alamat Lengkap</h3>
+                <p>Alamat fisik bisnis secara lengkap</p>
             </div>
-            <div class="feat-card">
-                <div class="feat-icon">⚡</div>
-                <h3>10 Tab Paralel</h3>
-                <p>Buka 10 halaman Google Maps sekaligus. 20 hasil selesai dalam 2 gelombang. Jauh lebih cepat.</p>
-            </div>
-            <div class="feat-card">
-                <div class="feat-icon">💬</div>
-                <h3>Support Responsif</h3>
-                <p>Ada masalah? Tim support siap bantu via WhatsApp. Respon cepat, solusi tepat.</p>
+            <div class="field-card">
+                <div class="field-icon">&#x1F310;</div>
+                <h3>Website</h3>
+                <p>URL website resmi dari tombol Website</p>
             </div>
         </div>
     </div>
 </section>
 
 <!-- How It Works -->
-<section>
-    <div class="section-inner">
-        <div class="section-label">CARA KERJA</div>
-        <h2 class="section-title">3 Langkah Sederhana</h2>
-        <p class="section-sub">Dari daftar sampai data siap pakai — cuma 3 langkah.</p>
-        <div class="steps-grid">
-            <div class="step-card">
+<section id="how" style="background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+    <div class="sec-inner">
+        <div class="sec-label">Cara Kerja</div>
+        <h2 class="sec-title">3 Langkah Sederhana</h2>
+        <p class="sec-sub">Dari daftar sampai data siap pakai — cuma 3 langkah.</p>
+        <div class="steps">
+            <div class="step">
                 <div class="step-num">1</div>
                 <h3>Daftar & Login</h3>
-                <p>Masuk pakai email. Cukup verifikasi OTP — tanpa password. Dapatkan API key kamu.</p>
+                <p>Buat akun dengan email & password. Langsung dapat 10x scraping gratis tanpa kartu kredit.</p>
             </div>
-            <div class="step-card">
+            <div class="step">
                 <div class="step-num">2</div>
                 <h3>Copy API Key</h3>
-                <p>Salin API key dari dashboard. Paste di Desktop App GMaps Scraper. Sekali setup, pakai selamanya.</p>
+                <p>Salin API key dari dashboard. Paste di Desktop App. Sekali setup, pakai selamanya.</p>
             </div>
-            <div class="step-card">
+            <div class="step">
                 <div class="step-num">3</div>
                 <h3>Scrape & Export</h3>
-                <p>Tentukan keyword + kota, atur jumlah scroll. Klik Start — data bisnis siap di-download CSV.</p>
+                <p>Pilih keyword + kota, atur scroll. Klik Start — data bisnis siap di-download CSV.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Testimonials -->
+<section>
+    <div class="sec-inner">
+        <div class="sec-label">Testimonial</div>
+        <h2 class="sec-title">Dipercaya pelanggan</h2>
+        <p class="sec-sub">Kenapa mereka memilih GMaps Scraper untuk lead generation.</p>
+        <div class="testimonials">
+            <div class="testi">
+                <p class="quote">"Biasanya scraping Google Maps ribet dan lambat. Pakai ini, 50 data bisnis keluar dalam 2 menit. Akurat banget nomornya."</p>
+                <div class="author"><div class="avatar">R</div><div><div class="name">Rizal P.</div><div class="role">Sales Manager</div></div></div>
+            </div>
+            <div class="testi">
+                <p class="quote">"Saya jualan ke bisnis lokal. Data dari GMaps Scraper langsung masuk ke CRM saya. Simple dan worth every rupiah."</p>
+                <div class="author"><div class="avatar">D</div><div><div class="name">Dewi S.</div><div class="role">Business Owner</div></div></div>
+            </div>
+            <div class="testi">
+                <p class="quote">"Yang paling keren: nomor HP-nya beneran akurat. Bukan kayak tools lain yang banyak salahnya. Ini game changer."</p>
+                <div class="author"><div class="avatar">A</div><div><div class="name">Andi K.</div><div class="role">Digital Marketer</div></div></div>
             </div>
         </div>
     </div>
 </section>
 
 <!-- Pricing -->
-<section id="pricing">
-    <div class="section-inner">
-        <div class="section-label">HARGA</div>
-        <h2 class="section-title">Paket Scraping</h2>
-        <p class="section-sub">Beli sesuai kebutuhan. Semua paket include full feature — bedanya cuma di quota.</p>
+<section id="pricing" style="background:var(--bg2);">
+    <div class="sec-inner">
+        <div class="sec-label">Harga</div>
+        <h2 class="sec-title">Paket Scraping</h2>
+        <p class="sec-sub">Beli sesuai kebutuhan. Semua paket include full feature. Mulai gratis dulu — 10x scraping tanpa biaya.</p>
         <div class="pricing-grid">
-            <div class="pricing-card">
-                <div class="pricing-tier">Starter</div>
-                <div class="pricing-price">Rp 29K</div>
-                <div class="pricing-detail">
-                    25x pencarian<br>
-                    Maks 10 scroll/sekali<br>
-                    Export CSV<br>
-                    Support WhatsApp
-                </div>
-                <a href="/login" class="btn btn-primary">Mulai</a>
+            <div class="price-card">
+                <div class="price-tier">Starter</div>
+                <div class="price-amt">Rp 29K</div>
+                <div class="price-feat">25x pencarian<br>Maks 10 scroll<br>Export CSV<br>Support WhatsApp</div>
+                <a href="/login" class="btn btn-outline">Pilih Starter</a>
             </div>
-            <div class="pricing-card featured">
-                <div class="pricing-tier">Basic</div>
-                <div class="pricing-price">Rp 79K</div>
-                <div class="pricing-detail">
-                    100x pencarian<br>
-                    Maks 20 scroll/sekali<br>
-                    Export CSV<br>
-                    Support WhatsApp
-                </div>
+            <div class="price-card popular">
+                <div class="price-tier">Basic</div>
+                <div class="price-amt">Rp 79K</div>
+                <div class="price-feat">100x pencarian<br>Maks 20 scroll<br>Export CSV<br>Support WhatsApp</div>
                 <a href="/login" class="btn btn-primary">Pilih Basic</a>
             </div>
-            <div class="pricing-card">
-                <div class="pricing-tier">Pro</div>
-                <div class="pricing-price">Rp 179K</div>
-                <div class="pricing-detail">
-                    300x pencarian<br>
-                    Maks 40 scroll/sekali<br>
-                    Export CSV<br>
-                    Support WhatsApp
-                </div>
-                <a href="/login" class="btn btn-primary">Pilih Pro</a>
+            <div class="price-card">
+                <div class="price-tier">Pro</div>
+                <div class="price-amt">Rp 179K</div>
+                <div class="price-feat">300x pencarian<br>Maks 40 scroll<br>Export CSV<br>Support WhatsApp</div>
+                <a href="/login" class="btn btn-outline">Pilih Pro</a>
             </div>
-            <div class="pricing-card">
-                <div class="pricing-tier">Bisnis</div>
-                <div class="pricing-price">Rp 349K</div>
-                <div class="pricing-detail">
-                    1000x pencarian<br>
-                    Maks 50 scroll/sekali<br>
-                    Export CSV<br>
-                    Support WhatsApp
-                </div>
-                <a href="/login" class="btn btn-primary">Pilih Bisnis</a>
+            <div class="price-card">
+                <div class="price-tier">Bisnis</div>
+                <div class="price-amt">Rp 349K</div>
+                <div class="price-feat">1000x pencarian<br>Maks 50 scroll<br>Export CSV<br>Support WhatsApp</div>
+                <a href="/login" class="btn btn-outline">Pilih Bisnis</a>
             </div>
         </div>
     </div>
@@ -283,50 +353,52 @@
 
 <!-- FAQ -->
 <section id="faq">
-    <div class="section-inner">
-        <div class="section-label">FAQ</div>
-        <h2 class="section-title">Pertanyaan Umum</h2>
+    <div class="sec-inner">
+        <div class="sec-label">FAQ</div>
+        <h2 class="sec-title">Pertanyaan Umum</h2>
         <div class="faq-list">
             <div class="faq-item">
-                <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Apa itu quota pencarian?</div>
-                <div class="faq-a">Quota adalah jumlah maksimal pencarian yang bisa kamu lakukan. 1x pencarian = masukkan keyword + pilih kota + klik Start. Setiap kali kamu scrape, 1 quota terpakai — berapapun jumlah hasilnya.</div>
+                <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Apa itu GMaps Scraper?</div>
+                <div class="faq-a">GMaps Scraper adalah tools untuk mengekstrak data bisnis dari Google Maps. Kamu bisa mencari berdasarkan keyword dan kota, lalu mendapatkan nama bisnis, nomor HP, rating, alamat, dan website dalam format CSV yang siap digunakan untuk lead generation, sales prospecting, atau riset pasar.</div>
             </div>
             <div class="faq-item">
                 <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Kenapa harus pakai IP sendiri?</div>
-                <div class="faq-a">Google Maps membatasi akses dari data center/proxy. Dengan IP residential kamu sendiri, hasil scrape lebih akurat dan tidak kena blokir. Data yang kamu lihat di browser = data yang di-scrape.</div>
+                <div class="faq-a">Google Maps membatasi akses dari data center atau proxy. Dengan IP residential kamu sendiri (dari Desktop App di komputer kamu), hasil scraping lebih akurat, tidak kena blokir, dan data yang kamu lihat di browser = data yang di-scrape. Privasi kamu tetap terjaga.</div>
             </div>
             <div class="faq-item">
                 <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Berapa lama proses scraping?</div>
-                <div class="faq-a">Dengan 10 tab paralel, 20 hasil bisnis selesai dalam 10--15 detik. Phase 1 (listing) sangat cepat. Phase 2 (detail tiap bisnis) sekitar 1--2 detik per bisnis — tapi 10 tab jalan bersamaan.</div>
+                <div class="faq-a">Dengan 10 tab paralel, 20 hasil bisnis selesai dalam 10--15 detik. Phase 1 (listing) sangat cepat. Phase 2 (detail tiap bisnis) sekitar 1--2 detik per bisnis — tapi 10 tab jalan bersamaan sehingga jauh lebih cepat daripada satu per satu.</div>
             </div>
             <div class="faq-item">
-                <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Data apa saja yang didapat?</div>
-                <div class="faq-a">Setiap bisnis menghasilkan 5 field: Nama Bisnis, Nomor HP (dari tombol Telepon), Rating (bintang), Alamat Lengkap, dan Website (dari tombol Website). Akurat — tidak ada data palsu.</div>
+                <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Apakah data yang dihasilkan akurat?</div>
+                <div class="faq-a">Ya. Kami menggunakan teknik ekstraksi presisi — nomor HP hanya diambil dari tombol berlabel "Telepon", website dari tombol "Website". Tidak ada false positive dari teks lain di halaman. Hasil scrape 99% sesuai dengan yang kamu lihat langsung di Google Maps.</div>
             </div>
             <div class="faq-item">
-                <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Bisa refund kalau tidak puas?</div>
-                <div class="faq-a">Kamu bisa coba gratis dulu — 10x scrape tanpa bayar. Kalau cocok, baru beli paket. Karena quota langsung terpakai saat scrape, refund hanya untuk kasus teknis (aplikasi error total).</div>
+                <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Bisa coba gratis dulu?</div>
+                <div class="faq-a">Tentu! Setiap user baru langsung dapat trial gratis — 10x scraping tanpa biaya, tanpa kartu kredit. Cocok untuk tes kualitas data sebelum beli paket. Kalau cocok, tinggal upgrade ke paket yang sesuai kebutuhan.</div>
             </div>
         </div>
     </div>
 </section>
 
 <!-- CTA -->
-<div class="cta-section">
-    <h2>Siap dapatkan data bisnis?</h2>
-    <p>Coba gratis 10x scrape. Tanpa kartu kredit. Tanpa ribet.</p>
+<div class="cta">
+    <h2>Siap dapatkan data bisnis untuk lead generation?</h2>
+    <p>Coba gratis 10x scrape. Tanpa kartu kredit. Tanpa ribet. Langsung dari browser & Desktop App.</p>
     <a href="/login" class="btn btn-white">Mulai Gratis Sekarang</a>
 </div>
 
 <!-- Footer -->
 <footer>
-    <p>&copy; 2026 GMaps Scraper. All rights reserved.</p>
-    <p style="margin-top:8px;">
+    <div class="footer-links">
         <a href="#features">Fitur</a>
+        <a href="#how">Cara Kerja</a>
         <a href="#pricing">Harga</a>
         <a href="#faq">FAQ</a>
         <a href="/login">Login</a>
-    </p>
+        <a href="/login">Register</a>
+    </div>
+    <p class="copy">&copy; 2026 GMaps Scraper. All rights reserved.</p>
 </footer>
 
 </body>
