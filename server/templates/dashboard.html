@@ -106,6 +106,7 @@
             <a href="/admin" class="nav-item" style="color:var(--red);"><span class="nav-icon">🔒</span> Admin Panel</a>
         </div>
     </nav>
+    <button class="nav-item" onclick="logout()" style="margin-top:auto;color:var(--red);"><span class="nav-icon">🚪</span> Keluar</button>
     <div class="sidebar-user">
         <div class="name" id="sidebar-name">---</div>
         <div id="sidebar-email">---</div>
@@ -212,6 +213,7 @@ function showTab(tab) {
     if (tab==="overview") loadOverview();
     if (tab==="history") loadHistory();
     if (tab==="invoices") loadInvoices();
+    if (tab==="settings") { document.getElementById("settings-name").value = USER.name||""; }
 }
 
 // ── Overview ──
@@ -275,17 +277,6 @@ async function loadInvoices(page=1) {
 }
 
 // ── Settings ──
-function showTab(tab) {
-    document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
-    document.getElementById("tab-"+tab).classList.add("active");
-    document.querySelectorAll(".nav-item").forEach(b=>b.classList.remove("active"));
-    document.getElementById("nav-"+tab).classList.add("active");
-    if (tab==="overview") loadOverview();
-    if (tab==="history") loadHistory();
-    if (tab==="invoices") loadInvoices();
-    if (tab==="settings") { document.getElementById("settings-name").value = USER.name||""; }
-}
-
 async function saveProfile() {
     const name = document.getElementById("settings-name").value.trim();
     if (!name) return;
@@ -303,6 +294,11 @@ async function resetMyKey() {
 }
 
 function esc(s){ if(!s)return"";const d=document.createElement("div");d.textContent=s;return d.innerHTML; }
+
+function logout() {
+    localStorage.clear();
+    window.location.href = "/";
+}
 
 // Init
 if (USER && USER.role === "admin") {

@@ -81,6 +81,11 @@
 </div>
 
 <script>
+// Auto-redirect ke dashboard kalau sudah login
+if (localStorage.getItem("token") && localStorage.getItem("user")) {
+    window.location.href = "/dashboard";
+}
+
 function showForm(type) {
     document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
     document.getElementById("form-login").classList.add("hidden");
