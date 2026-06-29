@@ -6,7 +6,7 @@ import 'screens/activation_screen.dart';
 import 'screens/home_screen.dart';
 
 /// Default server URL — user bisa ganti di settings.
-const String kDefaultServerUrl = 'https://gmapsscraper-production-36cd.up.railway.app';
+const String kDefaultServerUrl = 'https://gmapsscraper.com';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
