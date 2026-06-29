@@ -38,3 +38,15 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
+
+# ── Launcher (no CRT — always starts, checks VC++ Redist) ───────
+add_executable(gmaps_launcher WIN32 "launcher.c")
+target_link_libraries(gmaps_launcher PRIVATE kernel32.lib user32.lib shell32.lib)
+target_compile_options(gmaps_launcher PRIVATE /O1 /GS-)
+target_link_options(gmaps_launcher PRIVATE /NODEFAULTLIB /ENTRY:wWinMainCRTStartup /SUBSYSTEM:WINDOWS)
+# Copy launcher next to main exe
+add_custom_command(TARGET gmaps_launcher POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:gmaps_launcher>"
+        "$<TARGET_FILE_DIR:${BINARY_NAME}>/gmaps_launcher.exe"
+)
