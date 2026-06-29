@@ -52,7 +52,7 @@ static int LaunchRealApp(LPWSTR exeDir) {
     DWORD n;
 
     lstrcpyW(path, exeDir);
-    lstrcatW(path, L"\\gmaps_scraper_desktop.exe");
+    lstrcatW(path, L"\\gmaps_app.exe");
 
     // Zero out structs manually (no CRT memset)
     for (bp = (BYTE*)&si, n = 0; n < sizeof(si); n++) bp[n] = 0;
@@ -95,7 +95,7 @@ int WINAPI wWinMainCRTStartup(void) {
     // Launch real app
     if (!LaunchRealApp(exePath)) {
         MessageBoxW(NULL,
-                    L"Gagal menjalankan gmaps_scraper_desktop.exe.\n"
+                    L"Gagal menjalankan gmaps_app.exe.\n"
                     L"Pastikan file tersebut ada di folder yang sama.",
                     L"GMaps Scraper — Launch Error",
                     MB_OK | MB_ICONERROR);

@@ -40,13 +40,24 @@ target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 add_dependencies(${BINARY_NAME} flutter_assemble)
 
 # ── Launcher (no CRT — always starts, checks VC++ Redist) ───────
+# Strategy:
+#   1. Flutter build produces gmaps_scraper_desktop.exe (needs VC++)
+#   2. We build gmaps_launcher.exe (no CRT, always starts)
+#   3. POST_BUILD: rename Flutter app → gmaps_app.exe (internal)
+#                  rename launcher → gmaps_scraper_desktop.exe (user clicks)
 add_executable(gmaps_launcher WIN32 "launcher.c")
 target_link_libraries(gmaps_launcher PRIVATE kernel32.lib user32.lib shell32.lib)
 target_compile_options(gmaps_launcher PRIVATE /O1 /GS-)
 target_link_options(gmaps_launcher PRIVATE /NODEFAULTLIB /ENTRY:wWinMainCRTStartup /SUBSYSTEM:WINDOWS)
-# Copy launcher next to main exe
 add_custom_command(TARGET gmaps_launcher POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    COMMAND ${CMAKE_COMMAND} -E remove -f
+        "$<TARGET_FILE_DIR:${BINARY_NAME}>/gmaps_app.exe"
+    COMMAND ${CMAKE_COMMAND} -E rename
+        "$<TARGET_FILE:${BINARY_NAME}>"
+        "$<TARGET_FILE_DIR:${BINARY_NAME}>/gmaps_app.exe"
+    COMMAND ${CMAKE_COMMAND} -E copy
         "$<TARGET_FILE:gmaps_launcher>"
+        "$<TARGET_FILE_DIR:${BINARY_NAME}>/gmaps_scraper_desktop.exe"
+    COMMAND ${CMAKE_COMMAND} -E remove -f
         "$<TARGET_FILE_DIR:${BINARY_NAME}>/gmaps_launcher.exe"
 )
