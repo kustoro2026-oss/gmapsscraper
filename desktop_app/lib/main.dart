@@ -60,31 +60,36 @@ class _AppLoaderState extends State<AppLoader> {
 
     if (!mounted) return;
 
-    if (savedKey != null && savedKey.isNotEmpty) {
-      // Langsung ke home tanpa validasi (validasi di background)
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => HomeScreen(
-            apiKey: savedKey,
-            apiService: _apiService,
-            quotaRemaining: 0,
-            quotaTotal: 0,
-            packageType: '',
-            isTrial: false,
-            userEmail: null,
-            skipValidation: true,
+    // Defer navigation to after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      if (savedKey != null && savedKey.isNotEmpty) {
+        // Langsung ke home tanpa validasi (validasi di background)
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => HomeScreen(
+              apiKey: savedKey,
+              apiService: _apiService,
+              quotaRemaining: 0,
+              quotaTotal: 0,
+              packageType: '',
+              isTrial: false,
+              userEmail: null,
+              skipValidation: true,
+            ),
           ),
-        ),
-      );
-    } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ActivationScreen(apiService: _apiService),
-        ),
-      );
-    }
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ActivationScreen(apiService: _apiService),
+          ),
+        );
+      }
+    });
   }
 
   @override
