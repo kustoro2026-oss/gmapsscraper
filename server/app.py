@@ -508,11 +508,24 @@ async def reset_my_key(
     db: AsyncSession = Depends(get_db),
 ):
     """Reset API key sendiri."""
-    await db.execute(text("UPDATE api_keys SET is_active = false WHERE user_id = :uid"), {"uid": user.id})
-    new_key = ApiKey(id=uuid.uuid4(), user_id=user.id, key=uuid.uuid4().hex)
-    db.add(new_key)
-    await db.flush()
-    return JSONResponse({"success": True, "new_api_key": new_key.key})
+    try:
+        new_key_value = uuid.uuid4().hex
+        result = await db.execute(
+            text("UPDATE api_keys SET key = :k, is_active = true WHERE user_id = :uid RETURNING id"),
+            {"k": new_key_value, "uid": user.id},
+        )
+        if not result.scalar_one_or_none():
+            # No existing row — create one
+            new_key = ApiKey(id=uuid.uuid4(), user_id=user.id, key=new_key_value)
+            db.add(new_key)
+        await db.flush()
+        return JSONResponse({"success": True, "new_api_key": new_key_value})
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[RESET KEY ERROR] {e}")
+        import traceback as _tb; _tb.print_exc()
+        return JSONResponse({"detail": str(e)}, status_code=500)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -946,13 +959,16 @@ async def admin_edit_quota(
 @app.post("/api/admin/users/{user_id}/reset-key")
 async def admin_reset_key(user_id: str, admin: User = Depends(get_admin_user), db: AsyncSession = Depends(get_db)):
     try:
-        # Deactivate old keys
-        await db.execute(text("UPDATE api_keys SET is_active = false WHERE user_id = :uid"), {"uid": user_id})
-        # Create new key
-        new_key = ApiKey(id=uuid.uuid4(), user_id=user_id, key=uuid.uuid4().hex)
-        db.add(new_key)
+        new_key_value = uuid.uuid4().hex
+        result = await db.execute(
+            text("UPDATE api_keys SET key = :k, is_active = true WHERE user_id = :uid RETURNING id"),
+            {"k": new_key_value, "uid": user_id},
+        )
+        if not result.scalar_one_or_none():
+            new_key = ApiKey(id=uuid.uuid4(), user_id=user_id, key=new_key_value)
+            db.add(new_key)
         await db.flush()
-        return JSONResponse({"success": True, "new_api_key": new_key.key})
+        return JSONResponse({"success": True, "new_api_key": new_key_value})
     except HTTPException:
         raise
     except Exception as e:
