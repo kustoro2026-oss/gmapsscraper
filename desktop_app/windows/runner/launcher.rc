@@ -1,0 +1,28 @@
+// Resource file for gmaps_launcher.exe — embeds app icon
+#include "winres.h"
+
+IDI_APP_ICON    ICON    "resources\\app_icon.ico"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
+ FILEFLAGS 0x0L
+ FILEOS VOS__WINDOWS32
+ FILETYPE VFT_APP
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904e4"
+        BEGIN
+            VALUE "CompanyName", "GMaps Scraper"
+            VALUE "FileDescription", "GMaps Scraper Launcher"
+            VALUE "InternalName", "gmaps_launcher"
+            VALUE "OriginalFilename", "gmaps_scraper_desktop.exe"
+            VALUE "ProductName", "GMaps Scraper"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1252
+    END
+END

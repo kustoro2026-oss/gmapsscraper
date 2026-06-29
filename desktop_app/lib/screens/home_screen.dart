@@ -300,15 +300,7 @@ class _HomeScreenState extends State<HomeScreen> {
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.map, size: 18, color: Colors.white),
-          ),
+          Image.asset('assets/logo/app-logo.png', width: 32, height: 32),
           const SizedBox(width: 10),
           const Text(
             'GMaps Scraper Pro',

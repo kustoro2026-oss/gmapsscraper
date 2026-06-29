@@ -107,13 +107,13 @@ class _AppLoaderState extends State<AppLoader> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: Color(0xFF0F172A),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.map, size: 48, color: Color(0xFF3B82F6)),
+            Image.asset('assets/logo/app-logo.png', width: 56, height: 56),
             SizedBox(height: 16),
             CircularProgressIndicator(color: Color(0xFF3B82F6)),
           ],

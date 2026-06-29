@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "gmaps_scraper_desktop" "\0"
+            VALUE "CompanyName", "GMaps Scraper" "\0"
+            VALUE "FileDescription", "GMaps Scraper Pro" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "gmaps_scraper_desktop" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 GMaps Scraper. All rights reserved." "\0"
             VALUE "OriginalFilename", "gmaps_scraper_desktop.exe" "\0"
-            VALUE "ProductName", "gmaps_scraper_desktop" "\0"
+            VALUE "ProductName", "GMaps Scraper Pro" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

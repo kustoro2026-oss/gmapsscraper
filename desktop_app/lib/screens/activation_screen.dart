@@ -100,17 +100,8 @@ class _ActivationScreenState extends State<ActivationScreen> {
             child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Logo / icon
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF3B82F6), width: 2),
-                ),
-                child: const Icon(Icons.map, size: 44, color: Color(0xFF3B82F6)),
-              ),
+              // Logo
+              Image.asset('assets/logo/app-logo.png', width: 80, height: 80),
               const SizedBox(height: 24),
               const Text(
                 'Google Maps Scraper',
