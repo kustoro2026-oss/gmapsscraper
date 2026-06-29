@@ -1,6 +1,7 @@
 """PostgreSQL connection pool via asyncpg + SQLAlchemy async ORM."""
 
 import os
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 
@@ -31,6 +32,17 @@ async def get_db() -> AsyncSession:
 
 
 async def init_db():
-    """Create all tables. Call on startup."""
+    """Create all tables & run safe migrations. Call on startup."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # ── Safe migrations — add missing columns ──────────────────
+    async with engine.connect() as conn:
+        # password_hash column (added after initial deploy)
+        await conn.execute(text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS invoice_number VARCHAR(30)"
+        ))
+        await conn.commit()
