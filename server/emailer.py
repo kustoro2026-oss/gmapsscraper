@@ -29,27 +29,6 @@ def _send(email: MIMEMultipart):
     threading.Thread(target=_do, daemon=True).start()
 
 
-def send_otp_email(to_email: str, code: str):
-    """Send OTP verification code."""
-    msg = MIMEMultipart()
-    msg["Subject"] = "Kode OTP Login — GMaps Scraper"
-    msg["From"] = SMTP_FROM
-    msg["To"] = to_email
-
-    body = f"""Halo,
-
-Kode OTP login kamu: {code}
-
-Kode ini expired dalam 5 menit.
-
-Jika kamu tidak meminta kode ini, abaikan email ini.
-
-—
-GMaps Scraper"""
-    msg.attach(MIMEText(body, "plain"))
-    _send(msg)
-
-
 def send_welcome_email(to_email: str, name: str):
     """Send welcome email after first login."""
     msg = MIMEMultipart()

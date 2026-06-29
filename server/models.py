@@ -44,6 +44,7 @@ class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False, index=True)
     name = Column(String(255), nullable=True)
+    password_hash = Column(String(255), nullable=True)  # pbkdf2_hmac hash
     role = Column(SAEnum(UserRole), default=UserRole.user, nullable=False)
     is_banned = Column(Boolean, default=False, server_default=text('false'), nullable=False)
     banned_reason = Column(Text, nullable=True)

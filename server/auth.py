@@ -1,7 +1,8 @@
-"""JWT Auth + Email OTP — passwordless login via email."""
+"""JWT Auth + Password Login — email + password authentication."""
 
 import os
 import uuid
+import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -13,7 +14,6 @@ from sqlalchemy import select
 
 from database import get_db
 from models import User, ApiKey, UserRole
-from emailer import send_otp_email, send_welcome_email
 
 # ── Config ──────────────────────────────────────────────────────────
 
@@ -34,6 +34,30 @@ ADMIN_EMAILS = os.environ.get("ADMIN_EMAILS", "").split(",")  # e.g. "me@email.c
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
+# ── Password Hashing (pbkdf2_hmac) ──────────────────────────────────
+
+PBKDF2_ITERATIONS = 600_000
+
+
+def hash_password(password: str) -> str:
+    """Hash password with pbkdf2_hmac + random salt. Returns salt$hash."""
+    salt = secrets.token_hex(32)
+    h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), PBKDF2_ITERATIONS)
+    return f"{salt}${h.hex()}"
+
+
+def verify_password(password: str, stored: str) -> bool:
+    """Verify password against stored salt$hash."""
+    try:
+        salt, expected_hash = stored.split("$", 1)
+        h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), PBKDF2_ITERATIONS)
+        return secrets.compare_digest(h.hex(), expected_hash)
+    except (ValueError, AttributeError):
+        return False
+
+
+# ── JWT ─────────────────────────────────────────────────────────────
+
 def create_token(user_id: str, role: str = "user", expire_hours: int = JWT_EXPIRE_HOURS) -> str:
     payload = {
         "sub": user_id,
@@ -50,38 +74,6 @@ def decode_token(token: str) -> dict:
         return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
     except JWTError:
         raise HTTPException(status_code=401, detail="Token invalid atau expired")
-
-
-# ── OTP (in-memory — ganti Redis untuk production) ──────────────────
-
-_otp_store: dict[str, tuple[str, datetime]] = {}  # email → (code, expires_at)
-
-OTP_EXPIRE_MINUTES = 5
-
-
-def generate_otp(email: str) -> str:
-    code = f"{secrets.randbelow(1000000):06d}"
-    _otp_store[email.lower()] = (
-        code,
-        datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRE_MINUTES),
-    )
-    # Kirim OTP via email (Gmail SMTP)
-    send_otp_email(email, code)
-    return code
-
-
-def verify_otp(email: str, code: str) -> bool:
-    stored = _otp_store.get(email.lower())
-    if not stored:
-        return False
-    stored_code, expires = stored
-    if datetime.now(timezone.utc) > expires:
-        del _otp_store[email.lower()]
-        return False
-    if stored_code != code.strip():
-        return False
-    del _otp_store[email.lower()]
-    return True
 
 
 # ── Dependencies ─────────────────────────────────────────────────────
@@ -161,15 +153,12 @@ async def get_user_by_api_key(
 
     # Try Authorization: Bearer <key>
     auth_header = request.headers.get("Authorization", "")
-    print(f"[DEBUG get_user_by_api_key] auth_header = '{auth_header[:20]}...'")
     if auth_header.startswith("Bearer "):
         api_key_raw = auth_header[7:].strip()
 
     # Fallback: X-API-Key header
     if not api_key_raw:
         api_key_raw = request.headers.get("X-API-Key", "").strip()
-
-    print(f"[DEBUG get_user_by_api_key] api_key_raw = '{api_key_raw[:20] if api_key_raw else 'None'}...'")
 
     if not api_key_raw:
         raise HTTPException(status_code=401, detail="API key dibutuhkan")
@@ -179,13 +168,11 @@ async def get_user_by_api_key(
         select(ApiKey).where(ApiKey.key == api_key_raw, ApiKey.is_active == True)
     )
     api_key = result.scalar_one_or_none()
-    print(f"[DEBUG get_user_by_api_key] api_key found in DB = {api_key is not None}")
     if not api_key:
         raise HTTPException(status_code=401, detail="API key tidak valid")
 
     # Get user
     user = await db.scalar(select(User).where(User.id == api_key.user_id))
-    print(f"[DEBUG get_user_by_api_key] user = {user}")
     if not user:
         raise HTTPException(status_code=401, detail="User tidak ditemukan")
     if user.is_banned:

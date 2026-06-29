@@ -18,7 +18,7 @@ from slowapi.errors import RateLimitExceeded
 from database import init_db, get_db, engine, Base  # noqa: F401
 from models import User, ApiKey, License, Transaction, UsageLog, TransactionStatus, UserRole, PackageType
 from auth import (
-    create_token, decode_token, generate_otp, verify_otp,
+    create_token, decode_token, hash_password, verify_password,
     get_current_user, get_admin_user, get_license_for_user,
     ADMIN_EMAILS, bearer_scheme,
     get_user_by_api_key, get_license_by_api_key,
@@ -154,55 +154,116 @@ async def admin_page():
 #  AUTH ROUTES
 # ══════════════════════════════════════════════════════════════════
 
-@app.post("/api/auth/send-otp")
-@limiter.limit("3/minute")
-async def send_otp(request: Request, email: str = Form(...)):
-    """Kirim OTP 6-digit ke email."""
-    email = email.strip().lower()
-    code = generate_otp(email)
-    return JSONResponse({"success": True, "message": f"OTP dikirim ke {email}. Cek inbox/spam."})
-
-
-@app.post("/api/auth/verify")
+@app.post("/api/auth/register")
 @limiter.limit("5/minute")
-async def verify(request: Request, email: str = Form(...), otp: str = Form(...), db: AsyncSession = Depends(get_db)):
-    """Verifikasi OTP, return JWT. Auto-create user jika belum ada."""
+async def register(
+    request: Request,
+    name: str = Form(...),
+    email: str = Form(...),
+    password: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Register user baru dengan email + password."""
     email = email.strip().lower()
-    if not verify_otp(email, otp):
-        raise HTTPException(status_code=400, detail="OTP tidak valid atau expired")
+    name = name.strip()
+    password = password.strip()
 
-    # Cari atau buat user
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="Password minimal 6 karakter")
+    if len(name) < 1:
+        raise HTTPException(status_code=400, detail="Nama tidak boleh kosong")
+
+    # Cek email sudah dipakai
+    existing = await db.scalar(select(User).where(User.email == email))
+    if existing:
+        raise HTTPException(status_code=400, detail="Email sudah terdaftar. Silakan login.")
+
+    # Tentukan role (admin jika email di ADMIN_EMAILS)
+    role = UserRole.admin if email in ADMIN_EMAILS else UserRole.user
+
+    # Buat user
+    user = User(
+        id=uuid.uuid4(),
+        email=email,
+        name=name,
+        password_hash=hash_password(password),
+        role=role,
+    )
+    db.add(user)
+    await db.flush()
+
+    # Auto-generate API key
+    api_key = ApiKey(id=uuid.uuid4(), user_id=user.id, key=uuid.uuid4().hex)
+    db.add(api_key)
+    await db.flush()
+
+    # Auto-create trial license
+    trial_license = License(
+        id=uuid.uuid4(),
+        user_id=user.id,
+        package=PackageType.trial,
+        total_quota=10,
+        max_scrolls=20,
+    )
+    db.add(trial_license)
+    await db.flush()
+
+    # Kirim welcome email
+    send_welcome_email(email, name)
+
+    token = create_token(str(user.id), user.role.value)
+    return JSONResponse({
+        "success": True,
+        "message": "Registrasi berhasil!",
+        "token": token,
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "name": user.name,
+            "role": user.role.value,
+            "is_new": True,
+        },
+        "api_key": api_key.key,
+        "trial": {
+            "active": True,
+            "quota_total": trial_license.total_quota,
+            "quota_remaining": trial_license.total_quota - trial_license.used_quota,
+        },
+    })
+
+
+@app.post("/api/auth/login")
+@limiter.limit("10/minute")
+async def login(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Login dengan email + password, return JWT."""
+    email = email.strip().lower()
+    password = password.strip()
+
+    # Cari user
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
-    is_new = False
     if not user:
-        user = User(id=uuid.uuid4(), email=email, name=email.split("@")[0])
-        db.add(user)
-        await db.flush()
-        is_new = True
+        raise HTTPException(status_code=401, detail="Email atau password salah")
 
-    # Auto-generate API key kalau belum ada
-    key_result = await db.execute(select(ApiKey).where(ApiKey.user_id == user.id))
+    if user.is_banned:
+        raise HTTPException(status_code=403, detail="Akun dibanned")
+
+    # Verifikasi password
+    if not user.password_hash:
+        raise HTTPException(status_code=401, detail="Akun belum punya password. Silakan register ulang.")
+    if not verify_password(password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Email atau password salah")
+
+    # Ambil API key
+    key_result = await db.execute(
+        select(ApiKey).where(ApiKey.user_id == user.id, ApiKey.is_active == True)
+    )
     api_key = key_result.scalar_one_or_none()
-    if not api_key:
-        api_key = ApiKey(id=uuid.uuid4(), user_id=user.id, key=uuid.uuid4().hex)
-        db.add(api_key)
-        await db.flush()
-
-    # Auto-create trial license untuk user baru (sekali saja)
-    trial_license = None
-    if is_new:
-        trial_license = License(
-            id=uuid.uuid4(),
-            user_id=user.id,
-            package=PackageType.trial,
-            total_quota=10,
-            max_scrolls=20,
-        )
-        db.add(trial_license)
-        await db.flush()
-        # Kirim welcome email untuk user baru
-        send_welcome_email(email, user.name or email.split("@")[0])
 
     token = create_token(str(user.id), user.role.value)
     return JSONResponse({
@@ -213,14 +274,9 @@ async def verify(request: Request, email: str = Form(...), otp: str = Form(...),
             "email": user.email,
             "name": user.name,
             "role": user.role.value,
-            "is_new": is_new,
+            "is_new": False,
         },
-        "api_key": api_key.key,
-        "trial": {
-            "active": trial_license is not None,
-            "quota_total": trial_license.total_quota if trial_license else 0,
-            "quota_remaining": (trial_license.total_quota - trial_license.used_quota) if trial_license else 0,
-        } if trial_license else None,
+        "api_key": api_key.key if api_key else None,
     })
 
 

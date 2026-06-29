@@ -3,117 +3,155 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login — GMaps Scraper</title>
+    <title>Login / Register — GMaps Scraper</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .card { background: #1e293b; border-radius: 16px; padding: 40px; width: 100%; max-width: 420px; border: 1px solid #334155; }
-        h1 { font-size: 24px; margin-bottom: 8px; }
-        p { color: #94a3b8; margin-bottom: 28px; }
-        label { display: block; font-size: 14px; margin-bottom: 6px; color: #cbd5e1; }
-        input[type="email"], input[type="text"] { width: 100%; padding: 12px 16px; border-radius: 10px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 16px; margin-bottom: 16px; }
-        input:focus { outline: none; border-color: #3b82f6; }
-        button { width: 100%; padding: 14px; border-radius: 10px; border: none; background: #3b82f6; color: white; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-        button:hover { background: #2563eb; }
-        button:disabled { background: #475569; cursor: not-allowed; }
-        .error { color: #ef4444; font-size: 14px; margin-top: 12px; }
-        .success { color: #22c55e; font-size: 14px; margin-top: 12px; }
-        .hidden { display: none; }
-        .otp-group { display: flex; gap: 8px; }
-        .otp-group input { width: 48px; text-align: center; font-size: 24px; padding: 12px 0; }
-        .back-link { margin-top: 20px; text-align: center; }
-        .back-link a { color: #3b82f6; text-decoration: none; font-size: 14px; }
+        :root { --bg:#0a0f1f; --bg2:#111827; --border:#1e293b; --txt:#e2e8f0; --dim:#94a3b8; --blue:#3b82f6; --red:#ef4444; --green:#22c55e; --r:12px; }
+        * { box-sizing:border-box; margin:0; padding:0; }
+        body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--txt); display:flex; justify-content:center; align-items:center; min-height:100vh; padding:20px; }
+        .container { width:100%; max-width:420px; }
+        .logo { text-align:center; margin-bottom:32px; }
+        .logo a { font-size:24px; font-weight:800; color:white; text-decoration:none; }
+        .logo a span { color:var(--blue); }
+        .tabs { display:flex; background:var(--bg2); border-radius:var(--r); padding:4px; margin-bottom:24px; border:1px solid var(--border); }
+        .tab { flex:1; padding:10px; text-align:center; border-radius:10px; cursor:pointer; font-size:14px; font-weight:600; color:var(--dim); border:none; background:none; transition:all 0.2s; }
+        .tab.active { background:var(--blue); color:white; }
+        .card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--r); padding:28px; }
+        .card h2 { font-size:20px; margin-bottom:6px; }
+        .card .sub { color:var(--dim); font-size:14px; margin-bottom:24px; }
+        label { display:block; font-size:13px; color:var(--dim); margin-bottom:5px; }
+        input { width:100%; padding:11px 14px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--txt); font-size:15px; margin-bottom:14px; }
+        input:focus { outline:none; border-color:var(--blue); }
+        .btn { width:100%; padding:13px; border-radius:8px; border:none; font-size:15px; font-weight:600; cursor:pointer; transition:all 0.15s; }
+        .btn-blue { background:var(--blue); color:white; }
+        .btn-blue:hover { background:#2563eb; }
+        .btn-blue:disabled { background:#475569; cursor:not-allowed; }
+        .msg { font-size:13px; margin-top:12px; text-align:center; }
+        .msg-err { color:var(--red); }
+        .msg-ok { color:var(--green); }
+        .hidden { display:none; }
+        .back { text-align:center; margin-top:20px; }
+        .back a { color:var(--dim); text-decoration:none; font-size:13px; }
+        .back a:hover { color:white; }
+        .hint { font-size:12px; color:var(--dim); margin-top:-8px; margin-bottom:14px; }
     </style>
 </head>
 <body>
-<div class="card">
-    <h1>Login</h1>
-    <p>Masuk dengan email — tanpa password.</p>
-    <form id="email-form">
-        <label>Email</label>
-        <input type="email" id="email" placeholder="kamu@email.com" required autofocus>
-        <button type="submit" id="send-btn">Kirim Kode OTP</button>
-    </form>
-    <form id="otp-form" class="hidden">
-        <label>Kode OTP (6 digit)</label>
-        <input type="text" id="otp" placeholder="123456" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
-        <button type="submit" id="verify-btn">Verifikasi & Masuk</button>
-    </form>
-    <div id="message"></div>
-    <div class="back-link"><a href="/">← Kembali ke Beranda</a></div>
+<div class="container">
+    <div class="logo">
+        <a href="/">GMaps<span>Scraper</span></a>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" onclick="showForm('login')">Login</button>
+        <button class="tab" onclick="showForm('register')">Register</button>
+    </div>
+
+    <!-- Login Form -->
+    <div class="card" id="form-login">
+        <h2>Login</h2>
+        <p class="sub">Masuk dengan email & password.</p>
+        <form onsubmit="doLogin(event)">
+            <label>Email</label>
+            <input type="email" id="login-email" placeholder="kamu@email.com" required autofocus>
+            <label>Password</label>
+            <input type="password" id="login-password" placeholder="Password kamu" required>
+            <button type="submit" class="btn btn-blue" id="login-btn">Masuk</button>
+        </form>
+        <div id="login-msg" class="msg hidden"></div>
+    </div>
+
+    <!-- Register Form -->
+    <div class="card hidden" id="form-register">
+        <h2>Register</h2>
+        <p class="sub">Buat akun baru. Gratis 10x scraping.</p>
+        <form onsubmit="doRegister(event)">
+            <label>Nama</label>
+            <input type="text" id="reg-name" placeholder="Nama kamu" required>
+            <label>Email</label>
+            <input type="email" id="reg-email" placeholder="kamu@email.com" required>
+            <label>Password</label>
+            <input type="password" id="reg-password" placeholder="Minimal 6 karakter" required minlength="6">
+            <p class="hint">Minimal 6 karakter. Gunakan kombinasi huruf & angka.</p>
+            <button type="submit" class="btn btn-blue" id="reg-btn">Daftar Sekarang</button>
+        </form>
+        <div id="reg-msg" class="msg hidden"></div>
+    </div>
+
+    <div class="back"><a href="/">← Kembali ke Beranda</a></div>
 </div>
 
 <script>
-const emailForm = document.getElementById("email-form");
-const otpForm = document.getElementById("otp-form");
-const msgDiv = document.getElementById("message");
+function showForm(type) {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.getElementById("form-login").classList.add("hidden");
+    document.getElementById("form-register").classList.add("hidden");
+    document.getElementById("form-" + type).classList.remove("hidden");
+    if (type === "login") document.querySelectorAll(".tab")[0].classList.add("active");
+    else document.querySelectorAll(".tab")[1].classList.add("active");
+    document.getElementById("login-msg").classList.add("hidden");
+    document.getElementById("reg-msg").classList.add("hidden");
+}
 
-emailForm.addEventListener("submit", async (e) => {
+function setMsg(id, text, type) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = "msg msg-" + type;
+    el.classList.remove("hidden");
+}
+
+async function doLogin(e) {
     e.preventDefault();
-    const email = document.getElementById("email").value.trim();
-    if (!email) return;
-    msgDiv.textContent = "";
-    msgDiv.className = "";
-
-    const btn = document.getElementById("send-btn");
-    btn.disabled = true;
-    btn.textContent = "Mengirim...";
-
+    const btn = document.getElementById("login-btn");
+    btn.disabled = true; btn.textContent = "Masuk...";
+    setMsg("login-msg", "", "ok");
     try {
         const fd = new FormData();
-        fd.append("email", email);
-        const resp = await fetch("/api/auth/send-otp", { method: "POST", body: fd });
-        const data = await resp.json();
-        if (data.success) {
-            msgDiv.className = "success";
-            msgDiv.textContent = "OTP dikirim! Cek email kamu.";
-            emailForm.classList.add("hidden");
-            otpForm.classList.remove("hidden");
-            document.getElementById("otp").focus();
-        } else {
-            msgDiv.className = "error";
-            msgDiv.textContent = data.detail || "Gagal mengirim OTP";
-        }
-    } catch (err) {
-        msgDiv.className = "error";
-        msgDiv.textContent = "Gagal koneksi: " + err.message;
-    }
-    btn.disabled = false;
-    btn.textContent = "Kirim Kode OTP";
-});
-
-otpForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const email = document.getElementById("email").value.trim();
-    const otp = document.getElementById("otp").value.trim();
-    if (otp.length !== 6) return;
-
-    const btn = document.getElementById("verify-btn");
-    btn.disabled = true;
-    btn.textContent = "Memverifikasi...";
-
-    try {
-        const fd = new FormData();
-        fd.append("email", email);
-        fd.append("otp", otp);
-        const resp = await fetch("/api/auth/verify", { method: "POST", body: fd });
+        fd.append("email", document.getElementById("login-email").value.trim());
+        fd.append("password", document.getElementById("login-password").value);
+        const resp = await fetch("/api/auth/login", { method:"POST", body:fd });
         const data = await resp.json();
         if (data.success) {
             localStorage.setItem("token", data.token);
             localStorage.setItem("user", JSON.stringify(data.user));
-            localStorage.setItem("api_key", data.api_key);
+            if (data.api_key) localStorage.setItem("api_key", data.api_key);
             window.location.href = "/dashboard";
         } else {
-            msgDiv.className = "error";
-            msgDiv.textContent = data.detail || "OTP tidak valid";
+            setMsg("login-msg", data.detail || "Login gagal", "err");
         }
     } catch (err) {
-        msgDiv.className = "error";
-        msgDiv.textContent = "Gagal koneksi: " + err.message;
+        setMsg("login-msg", "Gagal koneksi: " + err.message, "err");
     }
-    btn.disabled = false;
-    btn.textContent = "Verifikasi & Masuk";
-});
+    btn.disabled = false; btn.textContent = "Masuk";
+}
+
+async function doRegister(e) {
+    e.preventDefault();
+    const btn = document.getElementById("reg-btn");
+    btn.disabled = true; btn.textContent = "Mendaftar...";
+    setMsg("reg-msg", "", "ok");
+    try {
+        const pw = document.getElementById("reg-password").value;
+        if (pw.length < 6) { setMsg("reg-msg", "Password minimal 6 karakter", "err"); btn.disabled=false; btn.textContent="Daftar Sekarang"; return; }
+        const fd = new FormData();
+        fd.append("name", document.getElementById("reg-name").value.trim());
+        fd.append("email", document.getElementById("reg-email").value.trim());
+        fd.append("password", pw);
+        const resp = await fetch("/api/auth/register", { method:"POST", body:fd });
+        const data = await resp.json();
+        if (data.success) {
+            setMsg("reg-msg", data.message, "ok");
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("user", JSON.stringify(data.user));
+            localStorage.setItem("api_key", data.api_key);
+            setTimeout(() => { window.location.href = "/dashboard"; }, 800);
+        } else {
+            setMsg("reg-msg", data.detail || "Registrasi gagal", "err");
+        }
+    } catch (err) {
+        setMsg("reg-msg", "Gagal koneksi: " + err.message, "err");
+    }
+    btn.disabled = false; btn.textContent = "Daftar Sekarang";
+}
 </script>
 </body>
 </html>
