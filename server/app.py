@@ -177,72 +177,80 @@ async def register(
     db: AsyncSession = Depends(get_db),
 ):
     """Register user baru dengan email + password."""
-    email = email.strip().lower()
-    name = name.strip()
-    password = password.strip()
+    try:
+        email = email.strip().lower()
+        name = name.strip()
+        password = password.strip()
 
-    if len(password) < 6:
-        raise HTTPException(status_code=400, detail="Password minimal 6 karakter")
-    if len(name) < 1:
-        raise HTTPException(status_code=400, detail="Nama tidak boleh kosong")
+        if len(password) < 6:
+            raise HTTPException(status_code=400, detail="Password minimal 6 karakter")
+        if len(name) < 1:
+            raise HTTPException(status_code=400, detail="Nama tidak boleh kosong")
 
-    # Cek email sudah dipakai
-    existing = await db.scalar(select(User).where(User.email == email))
-    if existing:
-        raise HTTPException(status_code=400, detail="Email sudah terdaftar. Silakan login.")
+        # Cek email sudah dipakai
+        existing = await db.scalar(select(User).where(User.email == email))
+        if existing:
+            raise HTTPException(status_code=400, detail="Email sudah terdaftar. Silakan login.")
 
-    # Tentukan role (admin jika email di ADMIN_EMAILS)
-    role = UserRole.admin if email in ADMIN_EMAILS else UserRole.user
+        # Tentukan role (admin jika email di ADMIN_EMAILS)
+        role = UserRole.admin if email in ADMIN_EMAILS else UserRole.user
 
-    # Buat user
-    user = User(
-        id=uuid.uuid4(),
-        email=email,
-        name=name,
-        password_hash=hash_password(password),
-        role=role,
-    )
-    db.add(user)
-    await db.flush()
+        # Buat user
+        user = User(
+            id=uuid.uuid4(),
+            email=email,
+            name=name,
+            password_hash=hash_password(password),
+            role=role,
+        )
+        db.add(user)
+        await db.flush()
 
-    # Auto-generate API key
-    api_key = ApiKey(id=uuid.uuid4(), user_id=user.id, key=uuid.uuid4().hex)
-    db.add(api_key)
-    await db.flush()
+        # Auto-generate API key
+        api_key = ApiKey(id=uuid.uuid4(), user_id=user.id, key=uuid.uuid4().hex)
+        db.add(api_key)
+        await db.flush()
 
-    # Auto-create trial license
-    trial_license = License(
-        id=uuid.uuid4(),
-        user_id=user.id,
-        package=PackageType.trial,
-        total_quota=10,
-        max_scrolls=20,
-    )
-    db.add(trial_license)
-    await db.flush()
+        # Auto-create trial license
+        trial_license = License(
+            id=uuid.uuid4(),
+            user_id=user.id,
+            package=PackageType.trial,
+            total_quota=10,
+            max_scrolls=20,
+        )
+        db.add(trial_license)
+        await db.flush()
 
-    # Kirim welcome email
-    send_welcome_email(email, name)
+        # Kirim welcome email
+        send_welcome_email(email, name)
 
-    token = create_token(str(user.id), user.role.value)
-    return JSONResponse({
-        "success": True,
-        "message": "Registrasi berhasil!",
-        "token": token,
-        "user": {
-            "id": str(user.id),
-            "email": user.email,
-            "name": user.name,
-            "role": user.role.value,
-            "is_new": True,
-        },
-        "api_key": api_key.key,
-        "trial": {
-            "active": True,
-            "quota_total": trial_license.total_quota,
-            "quota_remaining": trial_license.total_quota - trial_license.used_quota,
-        },
-    })
+        token = create_token(str(user.id), user.role.value)
+        return JSONResponse({
+            "success": True,
+            "message": "Registrasi berhasil!",
+            "token": token,
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "name": user.name,
+                "role": user.role.value,
+                "is_new": True,
+            },
+            "api_key": api_key.key,
+            "trial": {
+                "active": True,
+                "quota_total": trial_license.total_quota,
+                "quota_remaining": trial_license.total_quota - trial_license.used_quota,
+            },
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback as _tb
+        print(f"[REGISTER ERROR] {e}")
+        _tb.print_exc()
+        return JSONResponse({"detail": f"Server error: {str(e)}"}, status_code=500)
 
 
 @app.post("/api/auth/login")
@@ -254,43 +262,51 @@ async def login(
     db: AsyncSession = Depends(get_db),
 ):
     """Login dengan email + password, return JWT."""
-    email = email.strip().lower()
-    password = password.strip()
+    try:
+        email = email.strip().lower()
+        password = password.strip()
 
-    # Cari user
-    result = await db.execute(select(User).where(User.email == email))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=401, detail="Email atau password salah")
+        # Cari user
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=401, detail="Email atau password salah")
 
-    if user.is_banned:
-        raise HTTPException(status_code=403, detail="Akun dibanned")
+        if user.is_banned:
+            raise HTTPException(status_code=403, detail="Akun dibanned")
 
-    # Verifikasi password
-    if not user.password_hash:
-        raise HTTPException(status_code=401, detail="Akun belum punya password. Silakan register ulang.")
-    if not verify_password(password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Email atau password salah")
+        # Verifikasi password
+        if not user.password_hash:
+            raise HTTPException(status_code=401, detail="Akun belum punya password. Silakan register ulang.")
+        if not verify_password(password, user.password_hash):
+            raise HTTPException(status_code=401, detail="Email atau password salah")
 
-    # Ambil API key
-    key_result = await db.execute(
-        select(ApiKey).where(ApiKey.user_id == user.id, ApiKey.is_active == True)
-    )
-    api_key = key_result.scalar_one_or_none()
+        # Ambil API key
+        key_result = await db.execute(
+            select(ApiKey).where(ApiKey.user_id == user.id, ApiKey.is_active == True)
+        )
+        api_key = key_result.scalar_one_or_none()
 
-    token = create_token(str(user.id), user.role.value)
-    return JSONResponse({
-        "success": True,
-        "token": token,
-        "user": {
-            "id": str(user.id),
-            "email": user.email,
-            "name": user.name,
-            "role": user.role.value,
-            "is_new": False,
-        },
-        "api_key": api_key.key if api_key else None,
-    })
+        token = create_token(str(user.id), user.role.value)
+        return JSONResponse({
+            "success": True,
+            "token": token,
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "name": user.name,
+                "role": user.role.value,
+                "is_new": False,
+            },
+            "api_key": api_key.key if api_key else None,
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback as _tb
+        print(f"[LOGIN ERROR] {e}")
+        _tb.print_exc()
+        return JSONResponse({"detail": f"Server error: {str(e)}"}, status_code=500)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -914,6 +930,8 @@ async def admin_transactions(
 
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc):
+    if request.url.path.startswith("/api/"):
+        return JSONResponse({"detail": "Not found"}, status_code=404)
     return HTMLResponse(
         templates.get_template("error.html").render({
             "code": "404", "title": "Halaman Tidak Ditemukan",
@@ -926,9 +944,11 @@ async def not_found_handler(request: Request, exc):
 
 @app.exception_handler(500)
 async def server_error_handler(request: Request, exc):
-    import traceback
+    import traceback as _tb
     print(f"[500 ERROR] {request.url} — {exc}")
-    traceback.print_exc()
+    _tb.print_exc()
+    if request.url.path.startswith("/api/"):
+        return JSONResponse({"detail": "Internal server error"}, status_code=500)
     return HTMLResponse(
         templates.get_template("error.html").render({
             "code": "500", "title": "Server Error",
@@ -936,6 +956,20 @@ async def server_error_handler(request: Request, exc):
             "request": request,
         }),
         status_code=500,
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    if request.url.path.startswith("/api/"):
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+    return HTMLResponse(
+        templates.get_template("error.html").render({
+            "code": str(exc.status_code), "title": "Error",
+            "message": str(exc.detail),
+            "request": request,
+        }),
+        status_code=exc.status_code,
     )
 
 
