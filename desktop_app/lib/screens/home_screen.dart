@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../services/scraper_service.dart';
 import '../models/business.dart';
 import 'result_screen.dart';
+import 'activation_screen.dart';
 
 /// Screen utama: form keyword + fields + start scrape.
 /// Professional, responsive desktop design.
@@ -19,6 +20,7 @@ class HomeScreen extends StatefulWidget {
   final String packageType;
   final bool isTrial;
   final String? userEmail;
+  final bool skipValidation;
 
   const HomeScreen({
     super.key,
@@ -29,6 +31,7 @@ class HomeScreen extends StatefulWidget {
     required this.packageType,
     required this.isTrial,
     this.userEmail,
+    this.skipValidation = false,
   });
 
   @override
@@ -38,6 +41,15 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _keywordController = TextEditingController();
   int _maxScrolls = 10;
+
+  // Mutable license state (updated by background validation)
+  int _quotaRemaining = 0;
+  int _quotaTotal = 0;
+  String _packageType = '';
+  bool _isTrial = false;
+  String? _userEmail;
+  bool _validating = false;
+  String? _licenseError;
 
   // Field toggles — without total_review, gmaps_url, category
   bool _namaUsaha = true;
@@ -59,7 +71,47 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _quotaRemaining = widget.quotaRemaining;
+    _quotaTotal = widget.quotaTotal;
+    _packageType = widget.packageType;
+    _isTrial = widget.isTrial;
+    _userEmail = widget.userEmail;
     _autoDetectScraper();
+    if (widget.skipValidation) {
+      _validateLicenseInBackground();
+    }
+  }
+
+  /// Validasi license di background — update UI setelah selesai.
+  Future<void> _validateLicenseInBackground() async {
+    setState(() => _validating = true);
+    final result = await widget.apiService.checkLicense(widget.apiKey);
+    if (!mounted) return;
+    setState(() {
+      _validating = false;
+      if (result.valid) {
+        _quotaRemaining = result.quotaRemaining;
+        _quotaTotal = result.quotaTotal;
+        _packageType = result.packageType;
+        _isTrial = result.isTrial;
+        _userEmail = result.userEmail;
+        _licenseError = null;
+      } else {
+        _licenseError = result.error ?? 'License invalid';
+      }
+    });
+    // Jika key sudah tidak valid, arahkan ke activation
+    if (!result.valid && mounted) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('api_key');
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ActivationScreen(apiService: widget.apiService),
+        ),
+      );
+    }
   }
 
   @override
@@ -319,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
           margin: const EdgeInsets.only(right: 8),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: widget.quotaRemaining > 0
+            color: _quotaRemaining > 0
                 ? const Color(0xFF065F46)
                 : const Color(0xFF7F1D1D),
             borderRadius: BorderRadius.circular(16),
@@ -328,17 +380,17 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                widget.quotaRemaining > 0 ? Icons.bolt : Icons.bolt_outlined,
+                _quotaRemaining > 0 ? Icons.bolt : Icons.bolt_outlined,
                 size: 14,
-                color: widget.quotaRemaining > 0
+                color: _quotaRemaining > 0
                     ? const Color(0xFF34D399)
                     : const Color(0xFFFCA5A5),
               ),
               const SizedBox(width: 6),
               Text(
-                '${widget.quotaRemaining}/${widget.quotaTotal}',
+                '${_quotaRemaining}/${_quotaTotal}',
                 style: TextStyle(
-                  color: widget.quotaRemaining > 0
+                  color: _quotaRemaining > 0
                       ? const Color(0xFF34D399)
                       : const Color(0xFFFCA5A5),
                   fontSize: 12,
@@ -374,12 +426,12 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         children: [
           // Email
-          if (widget.userEmail != null) ...[
+          if (_userEmail != null) ...[
             const Icon(Icons.person, size: 16, color: Color(0xFF64748B)),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                widget.userEmail!,
+                _userEmail!,
                 style: const TextStyle(
                   color: Color(0xFF94A3B8),
                   fontSize: 12,
@@ -394,15 +446,15 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: widget.isTrial
+              color: _isTrial
                   ? const Color(0xFF1E3A5F)
                   : const Color(0xFF374151),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              widget.isTrial ? 'TRIAL' : widget.packageType.toUpperCase(),
+              _isTrial ? 'TRIAL' : _packageType.toUpperCase(),
               style: TextStyle(
-                color: widget.isTrial
+                color: _isTrial
                     ? const Color(0xFF60A5FA)
                     : const Color(0xFF9CA3AF),
                 fontSize: 10,
@@ -411,7 +463,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          if (widget.isTrial) ...[
+          if (_isTrial) ...[
             const SizedBox(width: 8),
             const Text(
               '10 quota gratis',

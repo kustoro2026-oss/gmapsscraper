@@ -6,7 +6,7 @@ import 'screens/activation_screen.dart';
 import 'screens/home_screen.dart';
 
 /// Default server URL — user bisa ganti di settings.
-const String kDefaultServerUrl = 'https://gmapsscraper.com';
+const String kDefaultServerUrl = 'https://gmapsscraper-production-36cd.up.railway.app';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,44 +58,26 @@ class _AppLoaderState extends State<AppLoader> {
 
     _apiService = ApiService(baseUrl: savedUrl);
 
+    if (!mounted) return;
+
     if (savedKey != null && savedKey.isNotEmpty) {
-      // Cek license masih valid
-      final result = await _apiService.checkLicense(savedKey);
-
-      if (!mounted) return;
-      setState(() => _loading = false);
-
-      if (result.valid) {
-        // Langsung ke home
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => HomeScreen(
-              apiKey: savedKey,
-              apiService: _apiService,
-              quotaRemaining: result.quotaRemaining,
-              quotaTotal: result.quotaTotal,
-              packageType: result.packageType,
-              isTrial: result.isTrial,
-              userEmail: result.userEmail,
-            ),
+      // Langsung ke home tanpa validasi (validasi di background)
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HomeScreen(
+            apiKey: savedKey,
+            apiService: _apiService,
+            quotaRemaining: 0,
+            quotaTotal: 0,
+            packageType: '',
+            isTrial: false,
+            userEmail: null,
+            skipValidation: true,
           ),
-        );
-      } else {
-        // Key expired — hapus dan tampilkan activation
-        await prefs.remove('api_key');
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ActivationScreen(apiService: _apiService),
-          ),
-        );
-      }
+        ),
+      );
     } else {
-      if (!mounted) return;
-      setState(() => _loading = false);
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(

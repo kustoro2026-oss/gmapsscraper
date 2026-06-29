@@ -26,8 +26,24 @@ class ApiService {
         headers: {'Authorization': 'Bearer $apiKey'},
       ).timeout(const Duration(seconds: 10));
 
+      Map<String, dynamic> data;
+      try {
+        data = jsonDecode(resp.body);
+      } catch (_) {
+        return (
+          valid: false,
+          quotaRemaining: 0,
+          quotaTotal: 0,
+          maxScrolls: 0,
+          packageType: '',
+          isTrial: false,
+          error: 'Server response not valid (HTTP ${resp.statusCode}). Check server URL.',
+          upgradeUrl: null,
+          userEmail: null,
+        );
+      }
+
       if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body);
         return (
           valid: data['active'] == true,
           quotaRemaining: data['quota_remaining'] as int? ?? 0,
@@ -40,7 +56,6 @@ class ApiService {
           userEmail: data['user_email'] as String?,
         );
       } else {
-        final data = jsonDecode(resp.body);
         return (
           valid: false,
           quotaRemaining: 0,
