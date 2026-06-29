@@ -26,7 +26,6 @@ if not JWT_SECRET:
     import sys
     sys.exit(1)
 
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")  # optional extra admin security
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_HOURS = 24
 ADMIN_EMAILS = os.environ.get("ADMIN_EMAILS", "").split(",")  # e.g. "me@email.com"
@@ -96,16 +95,10 @@ async def get_current_user(
 
 
 async def get_admin_user(
-    request: Request,
     user: User = Depends(get_current_user),
 ) -> User:
     if user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Admin only")
-    # Optional: admin password check via X-Admin-Password header
-    if ADMIN_PASSWORD:
-        admin_pass = request.headers.get("X-Admin-Password", "")
-        if admin_pass != ADMIN_PASSWORD:
-            raise HTTPException(status_code=403, detail="Admin password required")
     return user
 
 
