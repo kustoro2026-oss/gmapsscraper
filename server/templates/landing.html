@@ -68,6 +68,11 @@
         .btn-primary:hover { background:var(--blue2); transform:translateY(-1px); box-shadow:0 6px 20px rgba(37,99,235,0.4); }
         .btn-outline { background:white; border:1.5px solid var(--border); color:var(--txt); }
         .btn-outline:hover { border-color:var(--txt3); }
+        .btn-download { background:#0078d4; color:white; box-shadow:0 4px 14px rgba(0,120,212,0.3); position:relative; }
+        .btn-download:hover { background:#106ebe; transform:translateY(-1px); box-shadow:0 6px 20px rgba(0,120,212,0.4); }
+        .btn-download .win-icon { width:22px; height:22px; flex-shrink:0; }
+        .hero-os { display:inline-flex; align-items:center; gap:5px; margin-top:16px; font-size:12px; color:var(--txt3); }
+        .hero-os .os-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:6px; background:var(--bg3); font-size:11px; font-weight:600; color:var(--txt2); }
 
         /* Search demo */
         .search-demo { max-width:620px; margin:40px auto 0; background:white; border:1.5px solid var(--border); border-radius:var(--r2); padding:20px 24px; box-shadow:var(--shadow-lg); }
@@ -175,7 +180,7 @@
             <a href="#how" class="nav-link">Cara Kerja</a>
             <a href="#pricing" class="nav-link">Harga</a>
             <a href="#faq" class="nav-link">FAQ</a>
-            <a href="/login" class="nav-cta">Mulai Gratis</a>
+            <a href="/login" class="nav-cta">Download</a>
         </div>
     </div>
 </nav>
@@ -200,8 +205,18 @@
         </div>
 
         <div class="hero-btns">
-            <a href="/login" class="btn btn-primary">Mulai Gratis — 10x Scrape</a>
+            <a href="/login" class="btn btn-download">
+                <svg class="win-icon" viewBox="0 0 88 88" xmlns="http://www.w3.org/2000/svg"><path d="M0 12.5L36 7.6V43H0V12.5zM40 7.2L88 0v43H40V7.2zM0 47h36v36L0 75.5V47zm40 0h48v43l-48-6.8V47z" fill="white"/></svg>
+                Download untuk Windows
+            </a>
             <a href="#pricing" class="btn btn-outline">Lihat Harga Paket</a>
+        </div>
+        <div class="hero-os">
+            <span class="os-badge">
+                <svg width="13" height="13" viewBox="0 0 88 88" xmlns="http://www.w3.org/2000/svg"><path d="M0 12.5L36 7.6V43H0V12.5zM40 7.2L88 0v43H40V7.2zM0 47h36v36L0 75.5V47zm40 0h48v43l-48-6.8V47z" fill="#0078d4"/></svg>
+                Windows 10+
+            </span>
+            Gratis · 10x Scrape Trial
         </div>
 
         <!-- Search Demo -->
@@ -384,8 +399,8 @@
 <!-- CTA -->
 <div class="cta">
     <h2>Siap dapatkan data bisnis untuk lead generation?</h2>
-    <p>Coba gratis 10x scrape. Tanpa kartu kredit. Tanpa ribet. Langsung dari browser & Desktop App.</p>
-    <a href="/login" class="btn btn-white">Mulai Gratis Sekarang</a>
+    <p>Download aplikasi desktop untuk Windows. Daftar gratis, langsung dapat 10x scraping trial. Tanpa kartu kredit.</p>
+    <a href="/login" class="btn btn-white">Download untuk Windows</a>
 </div>
 
 <!-- Footer -->
