@@ -956,6 +956,71 @@ async def admin_edit_quota(
         return JSONResponse({"detail": str(e)}, status_code=500)
 
 
+@app.post("/api/admin/users/{user_id}/add-license")
+async def admin_add_license(
+    user_id: str,
+    package_key: str = Form(...),
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin manually add a license for a user."""
+    try:
+        user = await db.scalar(select(User).where(User.id == user_id))
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        pkg = PACKAGES.get(package_key)
+        if not pkg:
+            raise HTTPException(status_code=400, detail=f"Paket tidak valid: {package_key}. Pilih: {', '.join(PACKAGES.keys())}")
+
+        # Deactivate old licenses
+        await db.execute(
+            text("UPDATE licenses SET is_active = false WHERE user_id = :uid"),
+            {"uid": user_id},
+        )
+
+        # Create new license
+        new_lic = License(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            package=PackageType(package_key),
+            total_quota=pkg["quota"],
+            used_quota=0,
+            max_scrolls=pkg["max_scrolls"],
+            is_active=True,
+        )
+        db.add(new_lic)
+
+        # Also create a transaction record for tracking
+        txn = Transaction(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            product=PackageType(package_key),
+            amount=0,
+            status=TransactionStatus.success,
+            payment_method="manual_admin",
+            invoice_number=f"ADM-{uuid.uuid4().hex[:8].upper()}",
+        )
+        db.add(txn)
+
+        await db.flush()
+        return JSONResponse({
+            "success": True,
+            "message": f"Lisensi {pkg['name']} ditambahkan untuk {user.email}",
+            "license": {
+                "package": pkg["name"],
+                "total_quota": pkg["quota"],
+                "max_scrolls": pkg["max_scrolls"],
+            },
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ADMIN ADD LICENSE ERROR] {e}")
+        import traceback as _tb; _tb.print_exc()
+        return JSONResponse({"detail": str(e)}, status_code=500)
+
+
 @app.post("/api/admin/users/{user_id}/reset-key")
 async def admin_reset_key(user_id: str, admin: User = Depends(get_admin_user), db: AsyncSession = Depends(get_db)):
     try:
