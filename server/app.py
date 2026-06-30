@@ -28,7 +28,7 @@ from auth import (
     ADMIN_EMAILS, bearer_scheme,
     get_user_by_api_key, get_license_by_api_key,
 )
-from duitku import create_invoice, verify_callback_signature, PACKAGES
+from duitku import create_invoice, verify_callback_signature, check_transaction, PACKAGES
 from emailer import send_welcome_email, send_payment_confirmation, send_verification_email
 
 # ── Rate Limiter ──────────────────────────────────────────────────
@@ -854,7 +854,7 @@ async def payment_create(
     await db.flush()
 
     try:
-        invoice = await create_invoice(package_key, user.email, merchant_order_id)
+        invoice = await create_invoice(package_key, user.email, merchant_order_id, user.name or "")
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Gagal membuat invoice: {e}")
@@ -878,13 +878,18 @@ async def payment_callback(request: Request, db: AsyncSession = Depends(get_db))
 
     merchant_code = params.get("merchantCode", "")
     merchant_order_id = params.get("merchantOrderId", "")
-    amount = params.get("amount", "0")
+    amount_str = params.get("amount", "0")
     signature = params.get("signature", "")
     result_code = params.get("resultCode", "")
     reference = params.get("reference", "")
     payment_method = params.get("paymentCode", "")
 
-    # Verify signature
+    try:
+        amount = int(amount_str)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid amount")
+
+    # Verify HMAC-SHA256 signature
     if not verify_callback_signature(merchant_code, amount, merchant_order_id, signature):
         raise HTTPException(status_code=400, detail="Invalid callback signature")
 
@@ -901,6 +906,14 @@ async def payment_callback(request: Request, db: AsyncSession = Depends(get_db))
     txn.payment_method = payment_method
 
     if result_code == "00":  # Success
+        # Double-verifikasi: cek status langsung ke Duitku (defense in depth)
+        try:
+            status = await check_transaction(merchant_order_id)
+            if status.get("statusCode") != "00":
+                print(f"   [PAYMENT WARN] callback says success but Duitku check says {status.get('statusCode')}")
+        except Exception as e:
+            print(f"   [PAYMENT WARN] Cannot double-check with Duitku: {e}")
+
         txn.status = TransactionStatus.success
         # Generate invoice number
         date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
