@@ -240,12 +240,13 @@ async def debug_apikey(api_key: str, db: AsyncSession = Depends(get_db)):
 # ── HTML Page Routes ──────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
-async def landing(request: Request):
+async def landing():
     try:
-        return templates.TemplateResponse("landing.html", {
-            "request": request,
-            "download_url": DOWNLOAD_URL,
-        })
+        path = os.path.join(templates_dir, "landing.html")
+        with open(path, "r", encoding="utf-8") as f:
+            html = f.read()
+        html = html.replace("{{ download_url }}", DOWNLOAD_URL)
+        return HTMLResponse(html)
     except Exception as e:
         print(f"[LANDING ERROR] {e}")
         import traceback; traceback.print_exc()
