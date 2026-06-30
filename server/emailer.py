@@ -1,12 +1,11 @@
 """Email sender via Resend API — non-blocking with httpx."""
 
 import os
-import json
 import threading
 import httpx
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-RESEND_FROM = os.environ.get("RESEND_FROM", "GMaps Scraper <noreply@gmapsscraper.pro>")
+RESEND_FROM = os.environ.get("RESEND_FROM", "onboarding@resend.dev")
 RESEND_API_URL = "https://api.resend.com/emails"
 
 
@@ -31,6 +30,8 @@ def _send(subject: str, to_email: str, body: str):
             )
             if resp.status_code == 200:
                 print(f"   [EMAIL] Sent to {to_email} — {subject}")
+            elif resp.status_code == 422:
+                print(f"   [EMAIL ERROR] Resend rejected — pastikan domain di RESEND_FROM sudah diverifikasi di Resend. Detail: {resp.text}")
             else:
                 print(f"   [EMAIL ERROR] {resp.status_code}: {resp.text}")
         except Exception as e:
