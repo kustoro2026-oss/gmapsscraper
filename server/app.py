@@ -271,6 +271,26 @@ async def login_page():
     return FileResponse(os.path.join(templates_dir, "login.html"))
 
 
+@app.get("/kontak", response_class=HTMLResponse)
+async def kontak_page():
+    return FileResponse(os.path.join(templates_dir, "kontak.html"))
+
+
+@app.get("/syarat", response_class=HTMLResponse)
+async def syarat_page():
+    return FileResponse(os.path.join(templates_dir, "syarat.html"))
+
+
+@app.get("/privasi", response_class=HTMLResponse)
+async def privasi_page():
+    return FileResponse(os.path.join(templates_dir, "privasi.html"))
+
+
+@app.get("/refund", response_class=HTMLResponse)
+async def refund_page():
+    return FileResponse(os.path.join(templates_dir, "refund.html"))
+
+
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page():
     return FileResponse(os.path.join(templates_dir, "admin.html"))
