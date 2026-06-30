@@ -314,13 +314,12 @@ async def register(
 
         resp = {
             "success": True,
-            "message": "Registrasi berhasil! Cek email kamu untuk verifikasi.",
+            "message": "Registrasi berhasil! Klik link di bawah untuk verifikasi email.",
             "need_verify": True,
+            "verify_url": verify_url,
         }
-        # Fallback: kalau SMTP belum diset, tampilkan link langsung
         if not os.environ.get("SMTP_FROM") or not os.environ.get("SMTP_PASSWORD"):
-            resp["verify_url"] = verify_url
-            resp["message"] += " (SMTP belum dikonfigurasi — link verifikasi disertakan)"
+            resp["message"] += " (SMTP belum dikonfigurasi)"
         return JSONResponse(resp)
     except HTTPException:
         raise
@@ -403,7 +402,7 @@ async def resend_verification(
     verify_url = f"{SERVER_URL}/api/auth/verify-email?token={verify_token}"
     send_verification_email(email, user.name or email.split("@")[0], verify_url)
 
-    return JSONResponse({"success": True, "message": "Link verifikasi telah dikirim ulang ke email kamu."})
+    return JSONResponse({"success": True, "message": "Link verifikasi telah dikirim.", "verify_url": verify_url})
 
 
 @app.post("/api/auth/login")

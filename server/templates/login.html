@@ -137,7 +137,11 @@ async function resendVerify(email) {
     try {
         const resp = await fetch("/api/auth/resend-verification", { method:"POST", body:fd });
         const data = await resp.json();
-        setMsg("login-msg", data.message || "Link dikirim!", "ok");
+        let msg = data.message || "Link dikirim!";
+        if (data.verify_url) {
+            msg += '<br><a href="'+data.verify_url+'" style="color:var(--green);font-size:14px;">👉 Klik di sini untuk verifikasi</a>';
+        }
+        setMsg("login-msg", msg, "ok");
     } catch(e) {
         setMsg("login-msg", "Gagal: "+e.message, "err");
     }
@@ -160,11 +164,8 @@ async function doRegister(e) {
         if (data.success) {
             if (data.need_verify) {
                 let msg = data.message;
-                if (data.verify_url) {
-                    msg += '<br><a href="'+data.verify_url+'" style="color:var(--green);font-size:13px;">👉 Klik di sini untuk verifikasi email</a>';
-                } else {
-                    msg += '<br><small style="color:var(--dim);">Belum dapat email? <a href="#" onclick="resendVerify(\''+document.getElementById("reg-email").value.trim()+'\');return false;" style="color:var(--blue);">Kirim ulang</a></small>';
-                }
+                msg += '<br><a href="'+data.verify_url+'" style="color:var(--green);font-size:14px;">👉 Klik di sini untuk verifikasi email</a>';
+                msg += '<br><small style="color:var(--dim);">Atau cek inbox email kamu. <a href="#" onclick="resendVerify(\''+document.getElementById("reg-email").value.trim()+'\');return false;" style="color:var(--blue);">Kirim ulang</a></small>';
                 setMsg("reg-msg", msg, "ok");
                 document.getElementById("reg-btn").style.display = "none";
             } else {
