@@ -92,6 +92,10 @@ def validate_email(email: str) -> str | None:
 _PRESTRAPE_SECRET = os.environ.get("PRESTRAPE_SECRET", "gmapsscraper2026prestrape").encode()
 _PRESTRAPE_TTL = 300  # 5 menit
 
+# ── Download URL ───────────────────────────────────────────────────
+
+DOWNLOAD_URL = os.environ.get("DOWNLOAD_URL", "/login")
+
 def generate_prestrape_token(user_id: str, keyword: str, max_scrolls: int) -> str:
     ts = int(time_mod.time())
     payload = f"{user_id}|{ts}|{max_scrolls}|{keyword}"
@@ -236,9 +240,12 @@ async def debug_apikey(api_key: str, db: AsyncSession = Depends(get_db)):
 # ── HTML Page Routes ──────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
-async def landing():
+async def landing(request: Request):
     try:
-        return FileResponse(os.path.join(templates_dir, "landing.html"))
+        return templates.TemplateResponse("landing.html", {
+            "request": request,
+            "download_url": DOWNLOAD_URL,
+        })
     except Exception as e:
         print(f"[LANDING ERROR] {e}")
         import traceback; traceback.print_exc()
