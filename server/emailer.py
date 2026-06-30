@@ -45,7 +45,7 @@ Kamu sudah bisa langsung mencoba:
 • Desktop App untuk Windows
 • Export CSV
 
-Login ke dashboard: https://gmapsscraper-production-36cd.up.railway.app/dashboard
+Login ke dashboard: https://gmapsscraper.pro/dashboard
 
 Kalau ada pertanyaan, balas email ini aja.
 
@@ -73,7 +73,29 @@ Detail:
 
 Quota sudah aktif dan siap digunakan di Desktop App.
 
-Login: https://gmapsscraper-production-36cd.up.railway.app/dashboard
+Login: https://gmapsscraper.pro/dashboard
+
+—
+GMaps Scraper"""
+    msg.attach(MIMEText(body, "plain"))
+    _send(msg)
+
+
+def send_verification_email(to_email: str, name: str, verify_url: str):
+    """Send email verification link after registration."""
+    msg = MIMEMultipart()
+    msg["Subject"] = "Verifikasi Email — GMaps Scraper"
+    msg["From"] = SMTP_FROM
+    msg["To"] = to_email
+
+    body = f"""Halo {name},
+
+Terima kasih sudah mendaftar di GMaps Scraper!
+
+Klik link di bawah untuk verifikasi email kamu:
+{verify_url}
+
+Link ini berlaku 24 jam. Kalau kamu tidak merasa mendaftar, abaikan email ini.
 
 —
 GMaps Scraper"""

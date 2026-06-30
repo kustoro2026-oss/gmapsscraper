@@ -26,7 +26,7 @@ from auth import (
     get_user_by_api_key, get_license_by_api_key,
 )
 from duitku import create_invoice, verify_callback_signature, PACKAGES
-from emailer import send_welcome_email, send_payment_confirmation
+from emailer import send_welcome_email, send_payment_confirmation, send_verification_email
 
 # ── Rate Limiter ──────────────────────────────────────────────────
 
@@ -109,6 +109,19 @@ async def lifespan(app: FastAPI):
             except Exception:
                 await conn.rollback()
                 print("   [LIFESPAN] 'trial' already in packagetype ENUM (or skip)")
+        # Add email verification columns if not exists
+        async with engine.connect() as conn:
+            for col, col_type in [
+                ("email_verified", "BOOLEAN DEFAULT false"),
+                ("email_verify_token", "VARCHAR(128) UNIQUE"),
+            ]:
+                try:
+                    await conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {col_type}"))
+                    await conn.commit()
+                    print(f"   [LIFESPAN] Added column users.{col}")
+                except Exception:
+                    await conn.rollback()
+                    print(f"   [LIFESPAN] Column users.{col} already exists (or skip)")
         # Auto-create first admin from ADMIN_EMAILS env
         async with engine.begin() as conn:
             for admin_email in ADMIN_EMAILS:
@@ -279,54 +292,30 @@ async def register(
         # Tentukan role (admin jika email di ADMIN_EMAILS)
         role = UserRole.admin if email in ADMIN_EMAILS else UserRole.user
 
-        # Buat user
+        # Generate verify token
+        verify_token = uuid.uuid4().hex
+
+        # Buat user (belum verified)
         user = User(
             id=uuid.uuid4(),
             email=email,
             name=name,
             password_hash=hash_password(password),
             role=role,
+            email_verified=False,
+            email_verify_token=verify_token,
         )
         db.add(user)
         await db.flush()
 
-        # Auto-generate API key
-        api_key = ApiKey(id=uuid.uuid4(), user_id=user.id, key=uuid.uuid4().hex)
-        db.add(api_key)
-        await db.flush()
+        # Kirim email verifikasi
+        verify_url = f"{SERVER_URL}/api/auth/verify-email?token={verify_token}"
+        send_verification_email(email, name, verify_url)
 
-        # Auto-create trial license
-        trial_license = License(
-            id=uuid.uuid4(),
-            user_id=user.id,
-            package=PackageType.trial,
-            total_quota=10,
-            max_scrolls=1,
-        )
-        db.add(trial_license)
-        await db.flush()
-
-        # Kirim welcome email
-        send_welcome_email(email, name)
-
-        token = create_token(str(user.id), user.role.value)
         return JSONResponse({
             "success": True,
-            "message": "Registrasi berhasil!",
-            "token": token,
-            "user": {
-                "id": str(user.id),
-                "email": user.email,
-                "name": user.name,
-                "role": user.role.value,
-                "is_new": True,
-            },
-            "api_key": api_key.key,
-            "trial": {
-                "active": True,
-                "quota_total": trial_license.total_quota,
-                "quota_remaining": trial_license.total_quota - trial_license.used_quota,
-            },
+            "message": "Registrasi berhasil! Cek email kamu untuk verifikasi.",
+            "need_verify": True,
         })
     except HTTPException:
         raise
@@ -335,6 +324,81 @@ async def register(
         print(f"[REGISTER ERROR] {e}")
         _tb.print_exc()
         return JSONResponse({"detail": f"Server error: {str(e)}"}, status_code=500)
+
+
+@app.get("/api/auth/verify-email")
+async def verify_email(token: str = "", db: AsyncSession = Depends(get_db)):
+    """Verifikasi email via token link dari email."""
+    if not token:
+        raise HTTPException(status_code=400, detail="Token verifikasi diperlukan")
+
+    result = await db.execute(
+        select(User).where(User.email_verify_token == token)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Token verifikasi tidak valid atau sudah kadaluarsa")
+
+    if user.email_verified:
+        # Sudah verified — tetap redirect ke dashboard
+        return RedirectResponse(url="/dashboard?verified=1")
+
+    # Verifikasi
+    user.email_verified = True
+    user.email_verify_token = None
+
+    # Auto-generate API key kalau belum ada
+    key_result = await db.execute(select(ApiKey).where(ApiKey.user_id == user.id))
+    api_key = key_result.scalar_one_or_none()
+    if not api_key:
+        api_key = ApiKey(id=uuid.uuid4(), user_id=user.id, key=uuid.uuid4().hex)
+        db.add(api_key)
+
+    # Auto-create trial license
+    trial_license = License(
+        id=uuid.uuid4(),
+        user_id=user.id,
+        package=PackageType.trial,
+        total_quota=10,
+        max_scrolls=1,
+    )
+    db.add(trial_license)
+
+    await db.flush()
+
+    # Kirim welcome email
+    send_welcome_email(user.email, user.name or user.email.split("@")[0])
+
+    # Login otomatis: buat JWT & redirect ke dashboard
+    token_jwt = create_token(str(user.id), user.role.value)
+    return RedirectResponse(url=f"/dashboard?token={token_jwt}&name={user.name or ''}&email={user.email}&api_key={api_key.key}")
+
+
+@app.post("/api/auth/resend-verification")
+@limiter.limit("3/minute")
+async def resend_verification(
+    request: Request,
+    email: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Kirim ulang email verifikasi."""
+    email = email.strip().lower()
+    result = await db.execute(
+        select(User).where(User.email == email, User.email_verified == False)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        return JSONResponse({"success": True, "message": "Kalau email terdaftar dan belum diverifikasi, link akan dikirim."})
+
+    # Generate token baru
+    verify_token = uuid.uuid4().hex
+    user.email_verify_token = verify_token
+    await db.flush()
+
+    verify_url = f"{SERVER_URL}/api/auth/verify-email?token={verify_token}"
+    send_verification_email(email, user.name or email.split("@")[0], verify_url)
+
+    return JSONResponse({"success": True, "message": "Link verifikasi telah dikirim ulang ke email kamu."})
 
 
 @app.post("/api/auth/login")
@@ -359,7 +423,10 @@ async def login(
         if user.is_banned:
             raise HTTPException(status_code=403, detail="Akun dibanned")
 
-        # Verifikasi password
+        if not user.email_verified:
+            raise HTTPException(status_code=403, detail="Email belum diverifikasi. Cek inbox/spam email kamu.")
+
+        # Verify password
         if not user.password_hash:
             raise HTTPException(status_code=401, detail="Akun belum punya password. Silakan register ulang.")
         if not verify_password(password, user.password_hash):

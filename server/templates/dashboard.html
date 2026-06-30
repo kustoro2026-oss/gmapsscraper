@@ -175,6 +175,21 @@
 <div id="toast"></div>
 
 <script>
+// Handle redirect dari email verification
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.has("token")) {
+    localStorage.setItem("token", urlParams.get("token"));
+    localStorage.setItem("user", JSON.stringify({
+        id: "", email: urlParams.get("email") || "", name: urlParams.get("name") || "",
+        role: urlParams.get("role") || "user", is_new: true
+    }));
+    if (urlParams.get("api_key")) localStorage.setItem("api_key", urlParams.get("api_key"));
+    // Clean URL
+    window.history.replaceState({}, document.title, "/dashboard");
+    // Show welcome toast after page loads
+    window._showVerified = true;
+}
+
 const TOKEN = localStorage.getItem("token");
 const USER = JSON.parse(localStorage.getItem("user") || "null");
 
@@ -305,6 +320,9 @@ if (USER && USER.role === "admin") {
     document.getElementById("admin-link").style.display = "block";
 }
 loadOverview();
+if (window._showVerified) {
+    setTimeout(() => toast("Email berhasil diverifikasi! 🎉 10x scraping gratis sudah aktif."), 500);
+}
 </script>
 </body>
 </html>

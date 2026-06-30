@@ -48,6 +48,8 @@ class User(Base):
     role = Column(SAEnum(UserRole), default=UserRole.user, nullable=False)
     is_banned = Column(Boolean, default=False, server_default=text('false'), nullable=False)
     banned_reason = Column(Text, nullable=True)
+    email_verified = Column(Boolean, default=False, server_default=text('false'), nullable=False)
+    email_verify_token = Column(String(128), nullable=True, unique=True)
     created_at = Column(DateTime(timezone=True), default=utcnow)
 
     api_key = relationship("ApiKey", back_populates="user", uselist=False)

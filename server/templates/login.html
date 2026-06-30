@@ -122,11 +122,26 @@ async function doLogin(e) {
             window.location.href = "/dashboard";
         } else {
             setMsg("login-msg", data.detail || "Login gagal", "err");
+            if (data.detail && data.detail.includes("belum diverifikasi")) {
+                document.getElementById("login-msg").innerHTML += ' <br><a href="#" onclick="resendVerify(\''+document.getElementById("login-email").value.trim()+'\');return false;" style="color:var(--blue);font-size:12px;">Kirim ulang email verifikasi</a>';
+            }
         }
     } catch (err) {
         setMsg("login-msg", "Gagal koneksi: " + err.message, "err");
     }
     btn.disabled = false; btn.textContent = "Masuk";
+}
+
+async function resendVerify(email) {
+    if (!email) { alert("Masukkan email dulu"); return; }
+    const fd = new FormData(); fd.append("email", email);
+    try {
+        const resp = await fetch("/api/auth/resend-verification", { method:"POST", body:fd });
+        const data = await resp.json();
+        setMsg("login-msg", data.message || "Link dikirim!", "ok");
+    } catch(e) {
+        setMsg("login-msg", "Gagal: "+e.message, "err");
+    }
 }
 
 async function doRegister(e) {
@@ -145,10 +160,16 @@ async function doRegister(e) {
         const data = await resp.json();
         if (data.success) {
             setMsg("reg-msg", data.message, "ok");
-            localStorage.setItem("token", data.token);
-            localStorage.setItem("user", JSON.stringify(data.user));
-            localStorage.setItem("api_key", data.api_key);
-            setTimeout(() => { window.location.href = "/dashboard"; }, 800);
+            if (data.need_verify) {
+                // Tampilkan pesan verifikasi, jangan auto-login
+                document.getElementById("reg-btn").style.display = "none";
+                document.getElementById("reg-msg").innerHTML += '<br><small style="color:var(--dim);">Belum dapat email? <a href="#" onclick="resendVerify(\''+document.getElementById("reg-email").value.trim()+'\');return false;" style="color:var(--blue);">Kirim ulang</a></small>';
+            } else {
+                localStorage.setItem("token", data.token);
+                localStorage.setItem("user", JSON.stringify(data.user));
+                if (data.api_key) localStorage.setItem("api_key", data.api_key);
+                setTimeout(() => { window.location.href = "/dashboard"; }, 800);
+            }
         } else {
             setMsg("reg-msg", data.detail || "Registrasi gagal", "err");
         }

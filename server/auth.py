@@ -91,6 +91,8 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="User tidak ditemukan")
     if user.is_banned:
         raise HTTPException(status_code=403, detail="Akun dibanned")
+    if not user.email_verified:
+        raise HTTPException(status_code=403, detail="Email belum diverifikasi. Cek inbox email kamu.")
     return user
 
 
@@ -170,6 +172,8 @@ async def get_user_by_api_key(
         raise HTTPException(status_code=401, detail="User tidak ditemukan")
     if user.is_banned:
         raise HTTPException(status_code=403, detail="Akun dibanned")
+    if not user.email_verified:
+        raise HTTPException(status_code=403, detail="Email belum diverifikasi. Cek inbox email kamu.")
 
     return user
 
