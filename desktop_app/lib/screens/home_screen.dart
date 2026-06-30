@@ -328,6 +328,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (!mounted) return;
 
+      // Report hasil ke server (update UsageLog)
+      widget.apiService.updateResult(widget.apiKey, psResult.logId, results.length);
+
       // Geser ke result screen
       if (!mounted) return;
       Navigator.push(

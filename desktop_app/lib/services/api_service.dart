@@ -105,6 +105,7 @@ class ApiService {
     String token,
     int maxScrolls,
     int remaining,
+    String logId,
     String? error,
   })> preScrape(String apiKey, {String keyword = ''}) async {
     try {
@@ -118,7 +119,7 @@ class ApiService {
       try {
         data = jsonDecode(resp.body);
       } catch (_) {
-        return (success: false, token: '', maxScrolls: 0, remaining: 0, error: 'Invalid server response');
+        return (success: false, token: '', maxScrolls: 0, remaining: 0, logId: '', error: 'Invalid server response');
       }
 
       if (resp.statusCode == 200 && data['success'] == true) {
@@ -127,6 +128,7 @@ class ApiService {
           token: data['token'] as String? ?? '',
           maxScrolls: data['max_scrolls'] as int? ?? 0,
           remaining: data['remaining'] as int? ?? 0,
+          logId: data['log_id'] as String? ?? '',
           error: null,
         );
       } else {
@@ -135,11 +137,23 @@ class ApiService {
           token: '',
           maxScrolls: 0,
           remaining: 0,
+          logId: '',
           error: data['detail'] as String? ?? 'Pre-scrape failed',
         );
       }
     } catch (e) {
-      return (success: false, token: '', maxScrolls: 0, remaining: 0, error: 'Connection failed: $e');
+      return (success: false, token: '', maxScrolls: 0, remaining: 0, logId: '', error: 'Connection failed: $e');
     }
+  }
+
+  /// Report hasil scraping ke server (update results_count di UsageLog).
+  Future<void> updateResult(String apiKey, String logId, int resultsCount) async {
+    try {
+      await http.post(
+        Uri.parse('$baseUrl/api/desktop/update-result'),
+        headers: {'Authorization': 'Bearer $apiKey'},
+        body: {'log_id': logId, 'results_count': resultsCount.toString()},
+      ).timeout(const Duration(seconds: 5));
+    } catch (_) {}
   }
 }

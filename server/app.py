@@ -787,7 +787,26 @@ async def desktop_prestrape(
         "token": token,
         "max_scrolls": max_scrolls,
         "remaining": remaining,
+        "log_id": str(log.id),
     })
+
+
+@app.post("/api/desktop/update-result")
+async def desktop_update_result(
+    lic: License = Depends(get_license_by_api_key),
+    db: AsyncSession = Depends(get_db),
+    log_id: str = Form(""),
+    results_count: int = Form(0),
+):
+    """Update results_count di UsageLog setelah scraping selesai."""
+    result = await db.execute(
+        select(UsageLog).where(UsageLog.id == log_id, UsageLog.license_id == lic.id)
+    )
+    log = result.scalar_one_or_none()
+    if log:
+        log.results_count = results_count
+        await db.flush()
+    return JSONResponse({"success": True})
 
 
 # ══════════════════════════════════════════════════════════════════
