@@ -98,7 +98,7 @@ function showForm(type) {
 
 function setMsg(id, text, type) {
     const el = document.getElementById(id);
-    el.textContent = text;
+    el.innerHTML = text;
     el.className = "msg msg-" + type;
     el.classList.remove("hidden");
 }
