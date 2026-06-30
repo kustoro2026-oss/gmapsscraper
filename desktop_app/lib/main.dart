@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'services/api_service.dart';
+import 'services/secure_storage.dart';
 import 'screens/activation_screen.dart';
 import 'screens/home_screen.dart';
 
@@ -53,7 +54,7 @@ class _AppLoaderState extends State<AppLoader> {
 
   Future<void> _initApp() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedKey = prefs.getString('api_key');
+    final savedKey = await SecureStorage.getApiKey();
     final savedUrl = prefs.getString('server_url');
 
     // Security: only allow known server URLs

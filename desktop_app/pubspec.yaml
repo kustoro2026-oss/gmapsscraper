@@ -15,6 +15,7 @@ dependencies:
   csv: ^6.0.0
   file_picker: ^8.0.0
   url_launcher: ^6.3.0
+  crypto: ^3.0.0
 
 dev_dependencies:
   flutter_test:

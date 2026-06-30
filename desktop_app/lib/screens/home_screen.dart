@@ -1,11 +1,14 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:crypto/crypto.dart';
 
 import '../services/api_service.dart';
 import '../services/scraper_service.dart';
+import '../services/secure_storage.dart';
 import '../models/business.dart';
 import 'result_screen.dart';
 import 'activation_screen.dart';
@@ -109,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Jika key sudah tidak valid, arahkan ke activation
     if (!result.valid && mounted) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('api_key');
+      await SecureStorage.deleteApiKey();
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
@@ -121,11 +124,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   static const _minScraperSize = 1024 * 1024; // 1 MB minimum
+  static const _expectedScraperHash = '2cc614259a97edf47b6a03b7842bede03cffcf129bba3a7a441e8641578df7ef';
 
   bool _verifyScraper(File file) {
     try {
       if (file.lengthSync() < _minScraperSize) {
         _logs.add('[SECURITY] File scraper terlalu kecil, mungkin rusak/dimodifikasi.');
+        return false;
+      }
+      final bytes = file.readAsBytesSync();
+      final hash = sha256.convert(bytes).toString();
+      if (hash != _expectedScraperHash) {
+        _logs.add('[SECURITY] Hash scraper.exe tidak cocok! File mungkin dimodifikasi.');
         return false;
       }
       return true;
@@ -234,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!licenseResult.valid) {
       setState(() => _scraping = false);
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('api_key');
+      await SecureStorage.deleteApiKey();
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
@@ -323,7 +333,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('api_key');
+    await SecureStorage.deleteApiKey();
     if (!mounted) return;
     Navigator.pushReplacementNamed(context, '/');
   }

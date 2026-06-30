@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/api_service.dart';
+import '../services/secure_storage.dart';
 import 'home_screen.dart';
 
 /// Screen pertama: masukkan API key untuk aktivasi.
@@ -53,7 +54,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
 
     if (result.valid) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('api_key', key);
+      await SecureStorage.saveApiKey(key);
       await prefs.setString('server_url', widget.apiService.baseUrl);
 
       if (!mounted) return;

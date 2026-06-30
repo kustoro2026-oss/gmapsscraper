@@ -16,9 +16,9 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo [2/3] Building Flutter desktop app...
+echo [2/3] Building Flutter desktop app (obfuscated)...
 cd /d "%~dp0desktop_app"
-call flutter build windows --release
+call flutter build windows --release --obfuscate --split-debug-info=build\debug-info
 if %errorlevel% neq 0 (
     echo ERROR: Flutter build failed
     pause
@@ -26,7 +26,9 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo [3/3] Copying full scraper to Release...
+echo [3/3] Updating scraper hash & copying to Release...
+cd /d "%~dp0"
+python -c "import hashlib; h=hashlib.sha256(open(r'%CD%\dist\scraper\scraper.exe','rb').read()).hexdigest(); print('SCRAPER_HASH='+h)"
 rmdir /s /q "%~dp0desktop_app\build\windows\x64\runner\Release\scraper" 2>nul
 xcopy /e /i /q "%~dp0dist\scraper" "%~dp0desktop_app\build\windows\x64\runner\Release\scraper"
 if %errorlevel% neq 0 (
@@ -37,6 +39,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo ==============================================
-echo   DONE! App siap di:
-echo   desktop_app\build\windows\x64\runner\Release\gmaps_scraper_desktop.exe
+echo   DONE!
+echo   App: desktop_app\build\windows\x64\runner\Release\gmaps_scraper_desktop.exe
+echo   NOTE: Update _expectedScraperHash in home_screen.dart with SCRAPER_HASH above!
 echo ==============================================
