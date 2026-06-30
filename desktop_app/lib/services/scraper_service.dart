@@ -100,15 +100,19 @@ class ScraperService {
 
     // Baca CSV hasil
     final outputFile = File(outputPath);
-    if (!await outputFile.exists()) {
-      throw Exception('Output file not found: $outputPath');
+    try {
+      if (!await outputFile.exists()) {
+        throw Exception('Output file not found: $outputPath');
+      }
+
+      final csvContent = await outputFile.readAsString(encoding: utf8);
+      final rows = const CsvToListConverter().convert(csvContent);
+
+      if (rows.isEmpty) throw Exception('CSV is empty');
+
+      return rows.skip(1).map((row) => Business.fromCsvRow(row)).toList();
+    } finally {
+      try { await outputFile.delete(); } catch (_) {}
     }
-
-    final csvContent = await outputFile.readAsString(encoding: utf8);
-    final rows = const CsvToListConverter().convert(csvContent);
-
-    if (rows.isEmpty) throw Exception('CSV is empty');
-
-    return rows.skip(1).map((row) => Business.fromCsvRow(row)).toList();
   }
 }

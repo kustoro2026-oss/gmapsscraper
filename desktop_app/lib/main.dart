@@ -54,9 +54,15 @@ class _AppLoaderState extends State<AppLoader> {
   Future<void> _initApp() async {
     final prefs = await SharedPreferences.getInstance();
     final savedKey = prefs.getString('api_key');
-    final savedUrl = prefs.getString('server_url') ?? kDefaultServerUrl;
+    final savedUrl = prefs.getString('server_url');
 
-    _apiService = ApiService(baseUrl: savedUrl);
+    // Security: only allow known server URLs
+    const allowedUrls = ['https://gmapsscraper.pro', 'https://api.gmapsscraper.pro'];
+    final url = (savedUrl != null && allowedUrls.contains(savedUrl))
+        ? savedUrl
+        : kDefaultServerUrl;
+
+    _apiService = ApiService(baseUrl: url);
 
     if (!mounted) return;
 

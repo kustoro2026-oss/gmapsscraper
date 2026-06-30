@@ -182,10 +182,9 @@ async def scrape(keyword: str, max_scrolls: int = 10,
             headless=True,  # HEADLESS — tanpa browser UI
             args=[
                 "--disable-blink-features=AutomationControlled",
-                "--disable-dev-shm-usage", "--no-sandbox",
+                "--disable-dev-shm-usage",
                 "--disable-infobars", "--disable-setuid-sandbox",
                 "--no-first-run", "--no-default-browser-check",
-                "--ignore-certificate-errors",
             ]
         )
 

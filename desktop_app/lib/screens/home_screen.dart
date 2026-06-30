@@ -120,6 +120,20 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  static const _minScraperSize = 1024 * 1024; // 1 MB minimum
+
+  bool _verifyScraper(File file) {
+    try {
+      if (file.lengthSync() < _minScraperSize) {
+        _logs.add('[SECURITY] File scraper terlalu kecil, mungkin rusak/dimodifikasi.');
+        return false;
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   @override
   void dispose() {
     _keywordController.dispose();
@@ -137,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final exeDir = File(Platform.resolvedExecutable).parent;
     final bundleExe =
         File('${exeDir.path}${Platform.pathSeparator}scraper${Platform.pathSeparator}scraper.exe');
-    if (bundleExe.existsSync()) {
+    if (bundleExe.existsSync() && _verifyScraper(bundleExe)) {
       setState(() => _scraperPath = bundleExe.path);
       await prefs.setString('scraper_path', bundleExe.path);
       return;

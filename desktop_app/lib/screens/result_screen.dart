@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/business.dart';
 
@@ -57,10 +58,15 @@ class ResultScreen extends StatelessWidget {
   }
 
   Future<void> _openUrl(String url) async {
-    // Simple URL opener — strip if needed
-    if (!url.startsWith('http')) url = 'https://$url';
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://$url';
+    }
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme || (!uri.isScheme('http') && !uri.isScheme('https'))) {
+      return;
+    }
     try {
-      await Process.run('cmd', ['/c', 'start', url]);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (_) {}
   }
 
