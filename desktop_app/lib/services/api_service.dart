@@ -84,11 +84,12 @@ class ApiService {
   }
 
   /// Pakai 1 quota (call setelah scraping selesai).
-  Future<bool> useQuota(String apiKey) async {
+  Future<bool> useQuota(String apiKey, {String keyword = '', int resultsCount = 0}) async {
     try {
       final resp = await http.post(
         Uri.parse('$baseUrl/api/desktop/use'),
         headers: {'Authorization': 'Bearer $apiKey'},
+        body: {'keyword': keyword, 'results_count': resultsCount.toString()},
       ).timeout(const Duration(seconds: 5));
 
       return resp.statusCode == 200;

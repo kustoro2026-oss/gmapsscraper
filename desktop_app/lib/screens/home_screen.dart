@@ -277,7 +277,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
 
       // Kurangi quota di server + update lokal
-      widget.apiService.useQuota(widget.apiKey);
+      widget.apiService.useQuota(widget.apiKey, keyword: _keywordController.text.trim(), resultsCount: results.length);
       setState(() => _quotaRemaining = (_quotaRemaining - 1).clamp(0, _quotaTotal));
 
       // Geser ke result screen
