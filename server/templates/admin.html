@@ -57,6 +57,7 @@
         <button class="active" onclick="switchTab('dashboard')">Dashboard</button>
         <button onclick="switchTab('users')">Users</button>
         <button onclick="switchTab('transactions')">Transaksi</button>
+        <button onclick="switchTab('packages')">Paket</button>
         <button onclick="switchTab('activity')">Activity Log</button>
         <button onclick="window.open('/dashboard','_blank')">User Dashboard</button>
         <button onclick="localStorage.clear();window.location.reload()">Logout</button>
@@ -101,6 +102,20 @@
             <table><thead><tr><th>User</th><th>Paket</th><th>Invoice</th><th>Jumlah</th><th>Status</th><th>Metode</th><th>Tanggal</th></tr></thead>
             <tbody id="txn-table"></tbody></table>
             <div class="paginate" id="txn-pagination"></div>
+        </div>
+    </div>
+
+    <!-- Packages -->
+    <div class="tab" id="tab-packages">
+        <div class="card">
+            <div class="flex"><h2>Kelola Paket</h2><button class="btn-blue btn-sm" onclick="showAddPackage()">+ Paket Baru</button></div>
+            <p style="font-size:12px;color:var(--dim);margin-bottom:14px;">Ubah harga/kuota/scroll — langsung berlaku untuk semua user.</p>
+            <table><thead><tr><th>Key</th><th>Nama</th><th>Harga</th><th>Quota</th><th>Max Scroll</th><th></th></tr></thead>
+            <tbody id="packages-table"></tbody></table>
+        </div>
+        <!-- Add/Edit Package Modal -->
+        <div id="pkg-modal" class="modal hidden">
+            <div class="modal-card" id="pkg-modal-body"></div>
         </div>
     </div>
 

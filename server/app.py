@@ -28,7 +28,7 @@ from auth import (
     ADMIN_EMAILS, bearer_scheme,
     get_user_by_api_key, get_license_by_api_key,
 )
-from duitku import create_invoice, verify_callback_signature, check_transaction, PACKAGES
+from duitku import create_invoice, verify_callback_signature, check_transaction, PACKAGES, _save_packages
 from emailer import send_welcome_email, send_payment_confirmation, send_verification_email
 
 # ── Rate Limiter ──────────────────────────────────────────────────
@@ -1366,6 +1366,102 @@ async def admin_transactions(
         print(f"[ADMIN TRANSACTIONS ERROR] {e}")
         import traceback as _tb; _tb.print_exc()
         return JSONResponse({"detail": str(e)}, status_code=500)
+
+
+# ══════════════════════════════════════════════════════════════════
+#  ADMIN: PACKAGE MANAGEMENT
+# ══════════════════════════════════════════════════════════════════
+
+@app.get("/api/admin/packages")
+async def admin_get_packages(admin: User = Depends(get_admin_user)):
+    """Lihat semua paket (dari PACKAGES + packages.json)."""
+    return JSONResponse({
+        pkg_key: {
+            "key": pkg_key,
+            "name": pkg["name"],
+            "price": pkg["price"],
+            "quota": pkg["quota"],
+            "max_scrolls": pkg["max_scrolls"],
+        }
+        for pkg_key, pkg in PACKAGES.items()
+    })
+
+
+@app.put("/api/admin/packages/{package_key}")
+async def admin_update_package(
+    package_key: str,
+    admin: User = Depends(get_admin_user),
+    name: str = Form(""),
+    price: int = Form(0),
+    quota: int = Form(0),
+    max_scrolls: int = Form(0),
+):
+    """Update paket (harga, quota, max_scrolls). Perubahan langsung berlaku ke semua user."""
+    if package_key not in PACKAGES:
+        raise HTTPException(status_code=404, detail=f"Paket '{package_key}' tidak ditemukan")
+
+    pkg = PACKAGES[package_key]
+    if name: pkg["name"] = name
+    if price > 0: pkg["price"] = price
+    if quota > 0: pkg["quota"] = quota
+    if max_scrolls > 0: pkg["max_scrolls"] = max_scrolls
+
+    _save_packages(PACKAGES)
+    return JSONResponse({"success": True, "package": pkg})
+
+
+@app.post("/api/admin/packages")
+async def admin_add_package(
+    admin: User = Depends(get_admin_user),
+    package_key: str = Form(...),
+    name: str = Form(...),
+    price: int = Form(...),
+    quota: int = Form(...),
+    max_scrolls: int = Form(...),
+):
+    """Tambah paket baru."""
+    if package_key in PACKAGES:
+        raise HTTPException(status_code=400, detail=f"Paket '{package_key}' sudah ada. Gunakan PUT untuk update.")
+
+    PACKAGES[package_key] = {
+        "name": name, "price": price,
+        "quota": quota, "max_scrolls": max_scrolls,
+    }
+    _save_packages(PACKAGES)
+    return JSONResponse({"success": True, "package": PACKAGES[package_key]})
+
+
+@app.delete("/api/admin/packages/{package_key}")
+async def admin_delete_package(
+    package_key: str,
+    admin: User = Depends(get_admin_user),
+):
+    """Hapus paket (hanya dari daftar, tidak hapus license existing)."""
+    if package_key not in PACKAGES:
+        raise HTTPException(status_code=404, detail=f"Paket '{package_key}' tidak ditemukan")
+
+    del PACKAGES[package_key]
+    _save_packages(PACKAGES)
+    return JSONResponse({"success": True})
+
+
+@app.post("/api/admin/users/{user_id}/edit-scrolls")
+async def admin_edit_scrolls(
+    user_id: str,
+    max_scrolls: int = Form(...),
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Edit max_scrolls di license aktif user."""
+    lic = await db.scalar(
+        select(License).where(License.user_id == user_id, License.is_active == True)
+        .order_by(License.created_at.desc()).limit(1)
+    )
+    if not lic:
+        raise HTTPException(status_code=404, detail="No active license")
+    lic.max_scrolls = max_scrolls
+    await db.flush()
+    return JSONResponse({"success": True, "max_scrolls": lic.max_scrolls})
 
 
 # ══════════════════════════════════════════════════════════════════

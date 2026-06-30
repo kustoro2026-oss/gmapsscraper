@@ -1,6 +1,7 @@
 """Duitku API wrapper — inquiry, callback verification, signature (HMAC-SHA256)."""
 
 import os
+import json
 import hashlib
 import hmac
 import httpx
@@ -21,12 +22,37 @@ RETURN_URL = os.environ.get("RETURN_URL", "https://domainkamu.com/dashboard")
 
 # ── Package Pricing ─────────────────────────────────────────────────
 
-PACKAGES = {
+# Default PACKAGES — fallback kalau packages.json belum ada
+_DEFAULT_PACKAGES = {
     "starter": {"name": "STARTER", "price": 25000, "quota": 50, "max_scrolls": 10},
     "basic":   {"name": "BASIC",   "price": 69000, "quota": 200, "max_scrolls": 20},
     "pro":     {"name": "PRO",     "price": 149000, "quota": 500, "max_scrolls": 40},
     "bisnis":  {"name": "BISNIS",  "price": 299000, "quota": 1500, "max_scrolls": 50},
 }
+
+PACKAGES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "packages.json")
+
+def _load_packages() -> dict:
+    """Load packages from JSON file, fallback ke default."""
+    try:
+        if os.path.exists(PACKAGES_FILE):
+            with open(PACKAGES_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict) and len(data) > 0:
+                    print(f"   [PACKAGES] Loaded from {PACKAGES_FILE}")
+                    return data
+    except Exception as e:
+        print(f"   [PACKAGES] Failed to load {PACKAGES_FILE}: {e}, using defaults")
+    return dict(_DEFAULT_PACKAGES)
+
+def _save_packages(data: dict) -> None:
+    """Save packages to JSON file."""
+    with open(PACKAGES_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    print(f"   [PACKAGES] Saved to {PACKAGES_FILE}")
+
+# Load at module import
+PACKAGES = _load_packages()
 
 # ── HMAC-SHA256 Signatures ──────────────────────────────────────────
 
