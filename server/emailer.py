@@ -5,7 +5,7 @@ import threading
 import httpx
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-RESEND_FROM = os.environ.get("RESEND_FROM", "onboarding@resend.dev")
+RESEND_FROM = os.environ.get("RESEND_FROM", "GMaps Scraper <noreply@gmapsscraper.pro>")
 RESEND_API_URL = "https://api.resend.com/emails"
 
 
