@@ -33,7 +33,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 # ── Server URL ────────────────────────────────────────────────────
 
-SERVER_URL = os.environ.get("SERVER_URL", "https://gmapsscraper-production-36cd.up.railway.app")
+SERVER_URL = os.environ.get("SERVER_URL", "https://gmapsscraper.pro")
 UPGRADE_URL = f"{SERVER_URL}/"
 
 

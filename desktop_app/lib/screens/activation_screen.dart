@@ -67,6 +67,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
             quotaTotal: result.quotaTotal,
             packageType: result.packageType,
             isTrial: result.isTrial,
+            initialMaxScrolls: result.maxScrolls,
             userEmail: result.userEmail,
           ),
         ),
@@ -83,6 +84,13 @@ class _ActivationScreenState extends State<ActivationScreen> {
   Future<void> _openUpgrade() async {
     if (_upgradeUrl == null) return;
     final uri = Uri.parse(_upgradeUrl!);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _openDashboard() async {
+    final uri = Uri.parse('https://gmapsscraper.pro');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -197,10 +205,28 @@ class _ActivationScreenState extends State<ActivationScreen> {
 
               const SizedBox(height: 20),
 
-              // Info
+              // Dashboard button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _openDashboard,
+                      icon: const Icon(Icons.rocket_launch, size: 18),
+                  label: const Text('Dapatkan API Key Gratis',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF60A5FA),
+                    side: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
               Text(
-                'Belum punya API key? Login di web dashboard.\nTrial gratis 10 quota langsung aktif.',
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                'Belum punya API Key? Daftar gratis & langsung dapat 10 kali scraping!',
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
             ],

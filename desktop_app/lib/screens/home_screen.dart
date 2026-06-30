@@ -19,6 +19,7 @@ class HomeScreen extends StatefulWidget {
   final int quotaTotal;
   final String packageType;
   final bool isTrial;
+  final int initialMaxScrolls;
   final String? userEmail;
   final bool skipValidation;
 
@@ -30,6 +31,7 @@ class HomeScreen extends StatefulWidget {
     required this.quotaTotal,
     required this.packageType,
     required this.isTrial,
+    required this.initialMaxScrolls,
     this.userEmail,
     this.skipValidation = false,
   });
@@ -40,7 +42,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _keywordController = TextEditingController();
-  int _maxScrolls = 10;
+  int _maxScrolls = 1;
+  late int _maxScrollsAllowed; // dari license server
 
   // Mutable license state (updated by background validation)
   int _quotaRemaining = 0;
@@ -76,6 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _packageType = widget.packageType;
     _isTrial = widget.isTrial;
     _userEmail = widget.userEmail;
+    _maxScrollsAllowed = widget.initialMaxScrolls;
     _autoDetectScraper();
     if (widget.skipValidation) {
       _validateLicenseInBackground();
@@ -95,6 +99,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _packageType = result.packageType;
         _isTrial = result.isTrial;
         _userEmail = result.userEmail;
+        _maxScrollsAllowed = result.maxScrolls;
+        if (_maxScrolls > _maxScrollsAllowed) _maxScrolls = _maxScrollsAllowed;
         _licenseError = null;
       } else {
         _licenseError = result.error ?? 'License invalid';
@@ -202,8 +208,40 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _scraping = true;
       _progress = 0;
-      _progressDetail = 'Memulai...';
+      _progressDetail = 'Memvalidasi license...';
       _logs.clear();
+    });
+
+    // Re-validasi license ke server sebelum scrape agar max_scrolls selalu update
+    final licenseResult = await widget.apiService.checkLicense(widget.apiKey);
+
+    if (!mounted) return;
+
+    if (!licenseResult.valid) {
+      setState(() => _scraping = false);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('api_key');
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ActivationScreen(apiService: widget.apiService),
+        ),
+      );
+      return;
+    }
+
+    // Update data license terbaru dari server
+    _quotaRemaining = licenseResult.quotaRemaining;
+    _quotaTotal = licenseResult.quotaTotal;
+    _packageType = licenseResult.packageType;
+    _isTrial = licenseResult.isTrial;
+    _userEmail = licenseResult.userEmail;
+    _maxScrollsAllowed = licenseResult.maxScrolls;
+    if (_maxScrolls > _maxScrollsAllowed) _maxScrolls = _maxScrollsAllowed;
+
+    setState(() {
+      _progressDetail = 'Memulai...';
     });
 
     try {
@@ -539,12 +577,28 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildSettingsCard() {
+    // Hitung level peringatan berdasarkan paket
+    final bool atLimit = _maxScrolls >= _maxScrollsAllowed;
+    final bool nearLimit = !atLimit && _maxScrollsAllowed > 1 && _maxScrolls >= (_maxScrollsAllowed * 0.7).ceil();
+    final Color scrollColor = atLimit
+        ? const Color(0xFFEF4444)
+        : nearLimit
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFF3B82F6);
+    final Color trackColor = atLimit
+        ? const Color(0xFFEF4444)
+        : nearLimit
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFF3B82F6);
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: const Color(0xFF111827),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF1E293B)),
+        border: Border.all(
+          color: atLimit ? const Color(0xFF7F1D1D) : const Color(0xFF1E293B),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -569,6 +623,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              const Spacer(),
+              Text(
+                'Maks $_maxScrollsAllowed',
+                style: TextStyle(
+                  color: atLimit ? const Color(0xFFFCA5A5) : const Color(0xFF64748B),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -580,16 +643,30 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
+                  color: atLimit
+                      ? const Color(0xFF7F1D1D)
+                      : nearLimit
+                          ? const Color(0xFF78350F)
+                          : const Color(0xFF1E293B),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Text(
-                  '$_maxScrolls',
-                  style: const TextStyle(
-                    color: Color(0xFF3B82F6),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (atLimit)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 4),
+                        child: Icon(Icons.warning_amber_rounded, size: 14, color: Color(0xFFFCA5A5)),
+                      ),
+                    Text(
+                      '$_maxScrolls',
+                      style: TextStyle(
+                        color: scrollColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -598,20 +675,44 @@ class _HomeScreenState extends State<HomeScreen> {
             data: SliderThemeData(
               trackHeight: 4,
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-              activeTrackColor: const Color(0xFF3B82F6),
+              activeTrackColor: trackColor,
               inactiveTrackColor: const Color(0xFF1E293B),
-              thumbColor: const Color(0xFF3B82F6),
-              overlayColor: const Color(0xFF3B82F6).withOpacity(0.15),
+              thumbColor: trackColor,
+              overlayColor: trackColor.withOpacity(0.15),
             ),
             child: Slider(
               value: _maxScrolls.toDouble(),
-              min: 3,
-              max: 50,
-              divisions: 47,
+              min: 1,
+              max: _maxScrollsAllowed.toDouble(),
+              divisions: _maxScrollsAllowed > 1 ? _maxScrollsAllowed - 1 : 1,
               onChanged: _scraping ? null : (v) => setState(() => _maxScrolls = v.round()),
             ),
           ),
-          const SizedBox(height: 8),
+          // Warning text at limit
+          if (atLimit)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, size: 14, color: Color(0xFFFCA5A5)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _isTrial
+                          ? 'Batas maksimum trial (1 scroll). Upgrade untuk scroll lebih banyak.'
+                          : 'Batas maksimum paket $_packageType ($_maxScrollsAllowed scroll). Upgrade untuk menambah.',
+                      style: const TextStyle(
+                        color: Color(0xFFFCA5A5),
+                        fontSize: 11,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (!atLimit)
+            const SizedBox(height: 8),
           // Scraper path indicator
           Row(
             children: [

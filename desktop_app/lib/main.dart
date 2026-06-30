@@ -6,7 +6,7 @@ import 'screens/activation_screen.dart';
 import 'screens/home_screen.dart';
 
 /// Default server URL — user bisa ganti di settings.
-const String kDefaultServerUrl = 'https://gmapsscraper-production-36cd.up.railway.app';
+const String kDefaultServerUrl = 'https://gmapsscraper.pro';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,7 +43,7 @@ class AppLoader extends StatefulWidget {
 
 class _AppLoaderState extends State<AppLoader> {
   late final ApiService _apiService;
-  bool _loading = true;
+  Widget? _screen; // null = loading, set = direct render
 
   @override
   void initState() {
@@ -60,40 +60,33 @@ class _AppLoaderState extends State<AppLoader> {
 
     if (!mounted) return;
 
-    // Defer navigation to after first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-
-      if (savedKey != null && savedKey.isNotEmpty) {
-        // Langsung ke home tanpa validasi (validasi di background)
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => HomeScreen(
-              apiKey: savedKey,
-              apiService: _apiService,
-              quotaRemaining: 0,
-              quotaTotal: 0,
-              packageType: '',
-              isTrial: false,
-              userEmail: null,
-              skipValidation: true,
-            ),
-          ),
+    // Langsung set screen via setState — no Navigator needed
+    if (savedKey != null && savedKey.isNotEmpty) {
+      setState(() {
+        _screen = HomeScreen(
+          apiKey: savedKey,
+          apiService: _apiService,
+          quotaRemaining: 0,
+          quotaTotal: 0,
+          packageType: '',
+          isTrial: false,
+          initialMaxScrolls: 1,
+          userEmail: null,
+          skipValidation: true,
         );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ActivationScreen(apiService: _apiService),
-          ),
-        );
-      }
-    });
+      });
+    } else {
+      setState(() {
+        _screen = ActivationScreen(apiService: _apiService);
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Direct render — no Navigator
+    if (_screen != null) return _screen!;
+
     return Scaffold(
       backgroundColor: Color(0xFF0F172A),
       body: Center(
