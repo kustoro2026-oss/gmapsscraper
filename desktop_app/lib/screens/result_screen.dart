@@ -245,7 +245,7 @@ class ResultScreen extends StatelessWidget {
             child: ElevatedButton.icon(
               onPressed: () => _downloadCsv(context),
               icon: const Icon(Icons.download_rounded, size: 18),
-              label: const Text('CSV', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              label: const Text('DOWNLOAD CSV', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3B82F6),
                 foregroundColor: Colors.white,
@@ -277,9 +277,9 @@ class ResultScreen extends StatelessWidget {
     final hasRating = b.rating.isNotEmpty;
     final ratingVal = double.tryParse(b.rating) ?? 0.0;
     final ratingColor = ratingVal >= 4.0
-        ? const Color(0xFF22C55E)
+        ? const Color(0xFFF59E0B)
         : ratingVal >= 3.0
-            ? const Color(0xFFF59E0B)
+            ? const Color(0xFFD97706)
             : const Color(0xFFEF4444);
 
     return Container(
