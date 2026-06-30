@@ -1,6 +1,7 @@
 """GMaps Scraper v2 — License Server (FastAPI + PostgreSQL)."""
 
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
@@ -35,6 +36,52 @@ limiter = Limiter(key_func=get_remote_address)
 
 SERVER_URL = os.environ.get("SERVER_URL", "https://gmapsscraper.pro")
 UPGRADE_URL = f"{SERVER_URL}/"
+
+# ── Email Validation ──────────────────────────────────────────────
+
+DISPOSABLE_DOMAINS = {
+    "mailinator.com", "guerrillamail.com", "10minutemail.com", "temp-mail.org",
+    "tempmail.com", "throwaway.email", "sharklasers.com", "yopmail.com",
+    "trashmail.com", "dispostable.com", "maildrop.cc", "getnada.com",
+    "spamgourmet.com", "mailnesia.com", "anonbox.net", "disposable.com",
+    "mailcatch.com", "mytrashmail.com", "spambog.com", "spambox.us",
+    "fakeinbox.com", "tempr.email", "discard.email", "emailondeck.com",
+    "mintemail.com", "throwawaymail.com", "deadaddress.com", "spamdecoy.net",
+    "0wnd.net", "0wnd.org", "10minutemail.org", "20minutemail.com",
+    "bcaoo.com", "biscoine.com", "bumppack.com", "cdeter.com",
+    "chtah.com", "clgt.wtf", "cust.in", "dcctb.com", "defomail.com",
+    "dmailpro.com", "drowblock.com", "eoeo.es", "expirebox.com",
+    "getmail.lt", "gitpost.xyz", "hacfire.com", "hotak.co",
+    "imdutex.com", "inboxkitten.com", "kitymail.com", "klovenode.com",
+    "komdchfz.com", "konekee.com", "loongwin.com", "lottegi.com",
+    "mabuzi.com", "maill.dev", "mailonfly.com", "masasih.loan",
+    "materialniy.fun", "milkgitter.com", "mliok.com", "movilot.com",
+    "mowline.com", "nalbrak.com", "neccompany.com", "nerknak.com",
+    "nethii.com", "noobninja.com", "npnaxd.com", "nubenews.com",
+    "omtecha.com", "opposir.com", "pebzol.com", "popcornfly.com",
+    "progcop.com", "rodiuc.com", "rotorlit.com", "rowplant.com",
+    "rvikd.com", "saeoil.com", "sofrge.com", "spoteam.net",
+    "squizzy.de", "stabizin.com", "syinxun.com", "taikz.com",
+    "tempmailyo.site", "thameli.com", "tiuas.com", "tlbb.org",
+    "tpwlb.com", "tutoreve.com", "uotor.com", "uvl.one",
+    "visignal.com", "vogon.xyz", "wegwerfmail.de", "winluong.com",
+    "wmisnt.com", "wokcy.com", "ywhmnmom.com", "zenr.me",
+}
+
+EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]*@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$")
+
+def validate_email(email: str) -> str | None:
+    """Validasi format email & blokir domain disposable. Return error message atau None jika valid."""
+    if not email or "@" not in email:
+        return "Email tidak valid"
+    if not EMAIL_REGEX.match(email):
+        return "Format email tidak valid. Gunakan email asli (contoh: nama@gmail.com)"
+    domain = email.split("@")[-1].lower()
+    if domain in DISPOSABLE_DOMAINS:
+        return "Email sementara/tidak valid tidak diizinkan. Gunakan email asli."
+    if len(email) > 254:
+        return "Email terlalu panjang"
+    return None
 
 
 def _resolve_max_scrolls(package: PackageType) -> int:
@@ -188,6 +235,11 @@ async def register(
         email = email.strip().lower()
         name = name.strip()
         password = password.strip()
+
+        # Validasi email ketat
+        email_err = validate_email(email)
+        if email_err:
+            raise HTTPException(status_code=400, detail=email_err)
 
         if len(password) < 6:
             raise HTTPException(status_code=400, detail="Password minimal 6 karakter")
