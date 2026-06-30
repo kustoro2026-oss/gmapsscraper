@@ -14,6 +14,8 @@ Progress diprint ke stdout dengan prefix "PROGRESS:" untuk Flutter parsing.
 import argparse
 import asyncio as aio
 import csv
+import hashlib
+import hmac
 import json
 import os
 import random
@@ -23,6 +25,38 @@ import time as time_mod
 from datetime import datetime
 
 from playwright.async_api import async_playwright
+
+# ── Pre-Scrape Token Validation ─────────────────────────────────────
+
+_PRETRAPE_SECRET = "gmapsscraper2026prestrape".encode()
+_TTL = 300  # 5 menit
+
+def validate_token(token: str) -> dict | None:
+    """Validate HMAC-signed pre-scrape token. Return payload dict or None."""
+    try:
+        parts = token.rsplit("|", 1)
+        if len(parts) != 2:
+            return None
+        payload_str, sig = parts
+        expected_sig = hmac.new(_PRETRAPE_SECRET, payload_str.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected_sig):
+            print("PROGRESS:0:TOKEN INVALID — signature mismatch")
+            return None
+        payload_parts = payload_str.split("|")
+        if len(payload_parts) < 4:
+            return None
+        user_id, ts_str, max_scrolls_str, keyword = payload_parts[0], payload_parts[1], payload_parts[2], "|".join(payload_parts[3:])
+        ts = int(ts_str)
+        if int(time_mod.time()) - ts > _TTL:
+            print("PROGRESS:0:TOKEN EXPIRED")
+            return None
+        return {
+            "user_id": user_id,
+            "max_scrolls": int(max_scrolls_str),
+            "keyword": keyword,
+        }
+    except Exception:
+        return None
 
 # ── Anti-Detection: User-Agent Pool ────────────────────────────────
 
@@ -272,8 +306,19 @@ async def extract_business_info(page) -> dict:
 
 async def scrape(keyword: str, max_scrolls: int = 10,
                  lat: float = None, lng: float = None,
-                 fields: list[str] = None) -> list[dict]:
+                 fields: list[str] = None,
+                 token: str = None) -> list[dict]:
     """Scrape Google Maps — return list of business results."""
+
+    # Validate pre-scrape token jika disediakan
+    if token:
+        payload = validate_token(token)
+        if payload is None:
+            print("PROGRESS:0:TOKEN REJECTED — scraping dibatalkan")
+            return []
+        # Override max_scrolls dari token (server limit)
+        max_scrolls = min(max_scrolls, payload["max_scrolls"])
+        print(f"PROGRESS:0:Token valid — max {max_scrolls} scroll dari server")
     if fields is None:
         fields = ["nama_usaha", "nomor_hp", "alamat", "website", "rating"]
 
@@ -528,8 +573,20 @@ def main():
     parser.add_argument("--output", "-o", required=True, help="File output (.csv atau .json)")
     parser.add_argument("--lat", type=float, default=None, help="Latitude manual")
     parser.add_argument("--lng", type=float, default=None, help="Longitude manual")
+    parser.add_argument("--token", default=None, help="Pre-scrape token (dari license server)")
 
     args = parser.parse_args()
+
+    # Jika token disediakan tapi tidak valid, tolak scraping
+    if args.token:
+        from scraper import validate_token as _vt
+        payload = validate_token(args.token)
+        if payload is None:
+            print("PROGRESS:0:TOKEN REJECTED — scraping dibatalkan")
+            print("RESULT:none:0")
+            return
+        # Override max_scrolls dari token server
+        args.max_scrolls = min(args.max_scrolls, payload["max_scrolls"])
 
     fields = [f.strip() for f in args.fields.split(",") if f.strip()]
     lat, lng = args.lat, args.lng
@@ -539,7 +596,7 @@ def main():
     print(f"PROGRESS:0:GMaps Scraper CLI — {args.keyword}")
     print(f"PROGRESS:1:Max scroll: {args.max_scrolls} | Fields: {args.fields}")
 
-    results = aio.run(scrape(args.keyword, args.max_scrolls, lat, lng, fields))
+    results = aio.run(scrape(args.keyword, args.max_scrolls, lat, lng, fields, token=args.token))
 
     output = args.output
     if output.endswith(".json"):

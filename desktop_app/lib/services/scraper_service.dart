@@ -24,6 +24,7 @@ class ScraperService {
     required String keyword,
     required int maxScrolls,
     required String fields,
+    String? token,
     double? lat,
     double? lng,
     void Function(double progress, String detail)? onProgress,
@@ -41,6 +42,7 @@ class ScraperService {
       '--fields', fields,
       '--output', outputPath,
     ];
+    if (token != null && token.isNotEmpty) commonArgs.addAll(['--token', token]);
     if (lat != null) commonArgs.addAll(['--lat', lat.toString()]);
     if (lng != null) commonArgs.addAll(['--lng', lng.toString()]);
 

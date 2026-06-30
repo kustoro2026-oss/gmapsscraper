@@ -124,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   static const _minScraperSize = 1024 * 1024; // 1 MB minimum
-  static const _expectedScraperHash = '2cc614259a97edf47b6a03b7842bede03cffcf129bba3a7a441e8641578df7ef';
+  static const _expectedScraperHash = 'd15f2c58c5a15736c6db62d294447e88172599cf99ecc8dd46489645ad68026d';
 
   bool _verifyScraper(File file) {
     try {
@@ -243,7 +243,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (!licenseResult.valid) {
       setState(() => _scraping = false);
-      final prefs = await SharedPreferences.getInstance();
       await SecureStorage.deleteApiKey();
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -261,20 +260,49 @@ class _HomeScreenState extends State<HomeScreen> {
     _packageType = licenseResult.packageType;
     _isTrial = licenseResult.isTrial;
     _userEmail = licenseResult.userEmail;
-    _maxScrollsAllowed = licenseResult.maxScrolls;
+
+    // Dapatkan pre-scrape token (sekaligus konsumsi quota di server)
+    final keyword = _keywordController.text.trim();
+    setState(() => _progressDetail = 'Meminta token scraping...');
+
+    final psResult = await widget.apiService.preScrape(widget.apiKey, keyword: keyword);
+
+    if (!mounted) return;
+
+    if (!psResult.success) {
+      setState(() {
+        _scraping = false;
+        _progressDetail = 'Gagal: ${psResult.error}';
+      });
+      return;
+    }
+
+    // Update lokal dari response pre-scrape
+    _maxScrollsAllowed = psResult.maxScrolls;
     if (_maxScrolls > _maxScrollsAllowed) _maxScrolls = _maxScrollsAllowed;
+    _quotaRemaining = psResult.remaining;
 
     setState(() {
       _progressDetail = 'Memulai...';
     });
 
+    // Cegah user scrape lagi saat quota habis dari server (double check)
+    if (psResult.maxScrolls <= 0) {
+      setState(() {
+        _scraping = false;
+        _progressDetail = 'Max scroll tidak valid. Cek license.';
+      });
+      return;
+    }
+
     try {
       final scraper = ScraperService(scraperPath: _scraperPath!);
 
       final results = await scraper.runScrape(
-        keyword: _keywordController.text.trim(),
+        keyword: keyword,
         maxScrolls: _maxScrolls,
         fields: _fieldsString,
+        token: psResult.token,
         onProgress: (pct, detail) {
           if (!mounted) return;
           setState(() {
@@ -299,10 +327,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       if (!mounted) return;
-
-      // Kurangi quota di server + update lokal
-      widget.apiService.useQuota(widget.apiKey, keyword: _keywordController.text.trim(), resultsCount: results.length);
-      setState(() => _quotaRemaining = (_quotaRemaining - 1).clamp(0, _quotaTotal));
 
       // Geser ke result screen
       if (!mounted) return;

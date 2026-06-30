@@ -2,7 +2,10 @@
 
 import os
 import re
+import hmac
+import hashlib
 import uuid
+import time as time_mod
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 
@@ -83,6 +86,17 @@ def validate_email(email: str) -> str | None:
         return "Email terlalu panjang"
     return None
 
+
+# ── Pre-Scrape Token (HMAC) ────────────────────────────────────────
+
+_PRESTRAPE_SECRET = os.environ.get("PRESTRAPE_SECRET", "gmapsscraper2026prestrape").encode()
+_PRESTRAPE_TTL = 300  # 5 menit
+
+def generate_prestrape_token(user_id: str, keyword: str, max_scrolls: int) -> str:
+    ts = int(time_mod.time())
+    payload = f"{user_id}|{ts}|{max_scrolls}|{keyword}"
+    sig = hmac.new(_PRESTRAPE_SECRET, payload.encode(), hashlib.sha256).hexdigest()
+    return f"{payload}|{sig}"
 
 def _resolve_max_scrolls(package: PackageType) -> int:
     if package == PackageType.trial:
@@ -735,6 +749,44 @@ async def desktop_use_quota(
         "success": True,
         "remaining": remaining,
         "package": lic.package.value,
+    })
+
+
+@app.post("/api/desktop/pre-scrape")
+async def desktop_prestrape(
+    lic: License = Depends(get_license_by_api_key),
+    db: AsyncSession = Depends(get_db),
+    keyword: str = Form(""),
+):
+    """Generate pre-scrape token + consume quota BEFORE scraping."""
+    if lic.used_quota >= lic.total_quota:
+        raise HTTPException(status_code=402, detail="Quota habis")
+
+    max_scrolls = _resolve_max_scrolls(lic.package)
+
+    # Consume quota immediately
+    lic.used_quota += 1
+
+    # Generate signed token
+    token = generate_prestrape_token(str(lic.user_id), keyword, max_scrolls)
+
+    # Log (results_count added later by desktop/use or we skip use)
+    log = UsageLog(
+        id=uuid.uuid4(),
+        user_id=lic.user_id,
+        license_id=lic.id,
+        keyword=keyword[:255] if keyword else None,
+        results_count=0,
+    )
+    db.add(log)
+    await db.flush()
+
+    remaining = lic.total_quota - lic.used_quota
+    return JSONResponse({
+        "success": True,
+        "token": token,
+        "max_scrolls": max_scrolls,
+        "remaining": remaining,
     })
 
 
