@@ -115,6 +115,7 @@ class UsageLog(Base):
     license_id = Column(UUID(as_uuid=True), ForeignKey("licenses.id"), nullable=True)
     keyword = Column(String(255), nullable=True)
     results_count = Column(Integer, nullable=True)
+    max_scrolls = Column(Integer, default=1, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow)
 
     user = relationship("User", back_populates="usage_logs")

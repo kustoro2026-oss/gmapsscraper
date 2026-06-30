@@ -136,6 +136,15 @@ async def lifespan(app: FastAPI):
                 except Exception:
                     await conn.rollback()
                     print(f"   [LIFESPAN] Column users.{col} already exists (or skip)")
+        # Add max_scrolls to usage_logs
+        async with engine.connect() as conn:
+            try:
+                await conn.execute(text("ALTER TABLE usage_logs ADD COLUMN max_scrolls INTEGER DEFAULT 1"))
+                await conn.commit()
+                print("   [LIFESPAN] Added column usage_logs.max_scrolls")
+            except Exception:
+                await conn.rollback()
+                print("   [LIFESPAN] Column usage_logs.max_scrolls already exists (or skip)")
         # Auto-create first admin from ADMIN_EMAILS env
         async with engine.begin() as conn:
             for admin_email in ADMIN_EMAILS:
@@ -567,6 +576,7 @@ async def user_history(
     return JSONResponse({
         "logs": [{
             "id": str(l.id), "keyword": l.keyword, "results_count": l.results_count,
+            "max_scrolls": l.max_scrolls or 0,
             "created_at": l.created_at.isoformat() if l.created_at else None,
         } for l in logs],
         "total": count, "page": page, "total_pages": max(1, (count + per_page - 1) // per_page),
@@ -777,6 +787,7 @@ async def desktop_prestrape(
         license_id=lic.id,
         keyword=keyword[:255] if keyword else None,
         results_count=0,
+        max_scrolls=max_scrolls,
     )
     db.add(log)
     await db.flush()

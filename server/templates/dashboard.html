@@ -137,7 +137,7 @@
     <div class="tab-panel" id="tab-history">
         <div class="card">
             <h2>Riwayat Scraping</h2>
-            <table><thead><tr><th>Keyword</th><th>Hasil</th><th>Tanggal</th></tr></thead><tbody id="history-table"></tbody></table>
+            <table><thead><tr><th>Keyword</th><th>Scroll</th><th>Hasil</th><th>Tanggal</th></tr></thead><tbody id="history-table"></tbody></table>
             <div class="pagination" id="history-pagination"></div>
         </div>
     </div>
@@ -269,8 +269,8 @@ async function buy(key) {
 async function loadHistory(page=1) {
     const d = await api(`/api/user/history?page=${page}`);
     const tbody = document.getElementById("history-table");
-    if (!d.logs||d.logs.length===0) { tbody.innerHTML=`<tr><td colspan="3" class="empty">Belum ada riwayat scraping</td></tr>`; return; }
-    tbody.innerHTML = d.logs.map(l=>`<tr><td>${esc(l.keyword||"-")}</td><td>${l.results_count||0}</td><td>${l.created_at?.slice(0,16)||"-"}</td></tr>`).join("");
+    if (!d.logs||d.logs.length===0) { tbody.innerHTML=`<tr><td colspan="4" class="empty">Belum ada riwayat scraping</td></tr>`; return; }
+    tbody.innerHTML = d.logs.map(l=>`<tr><td>${esc(l.keyword||"-")}</td><td>${l.max_scrolls||0}x</td><td>${l.results_count||0}</td><td>${l.created_at?.slice(0,16)||"-"}</td></tr>`).join("");
     let p="";for(let i=1;i<=d.total_pages;i++)p+=`<button class="${i===page?'on':''}" onclick="loadHistory(${i})">${i}</button>`;
     document.getElementById("history-pagination").innerHTML=p;
 }
