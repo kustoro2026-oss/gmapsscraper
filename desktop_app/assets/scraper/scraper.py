@@ -237,7 +237,7 @@ async def scrape(keyword: str, max_scrolls: int = 10,
         # ── Scroll Feed ──
         scroll_start = time_mod.time()
         SCROLL_TIMEOUT = 300
-        limit = max(max_scrolls, 3)
+        limit = max_scrolls
         last_card_count = 0
         stuck_card_count = 0
         bottom_hit_count = 0

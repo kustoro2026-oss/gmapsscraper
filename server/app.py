@@ -37,6 +37,13 @@ SERVER_URL = os.environ.get("SERVER_URL", "https://gmapsscraper.pro")
 UPGRADE_URL = f"{SERVER_URL}/"
 
 
+def _resolve_max_scrolls(package: PackageType) -> int:
+    if package == PackageType.trial:
+        return 1
+    pkg = PACKAGES.get(package.value, {})
+    return pkg.get("max_scrolls", 1)
+
+
 # ── App Setup ─────────────────────────────────────────────────────
 
 @asynccontextmanager
@@ -364,7 +371,7 @@ async def license_status(
             "total_quota": lic.total_quota if lic else 0,
             "used_quota": lic.used_quota if lic else 0,
             "remaining": (lic.total_quota - lic.used_quota) if lic else 0,
-            "max_scrolls": lic.max_scrolls if lic else 0,
+            "max_scrolls": _resolve_max_scrolls(lic.package) if lic else 0,
         } if lic else None,
         "api_key": api_key.key if api_key else None,
         "is_banned": user.is_banned,
@@ -547,12 +554,13 @@ async def desktop_status(
     lic = result.scalar_one_or_none()
 
     if lic and lic.used_quota < lic.total_quota:
+        resolved_scrolls = _resolve_max_scrolls(lic.package)
         return JSONResponse({
             "active": True,
             "quota_remaining": lic.total_quota - lic.used_quota,
             "quota_total": lic.total_quota,
             "package": lic.package.value,
-            "max_scrolls": lic.max_scrolls,
+            "max_scrolls": resolved_scrolls,
             "is_trial": lic.package == PackageType.trial,
             "user_email": user.email,
             "upgrade_url": UPGRADE_URL if lic.package == PackageType.trial else None,
