@@ -195,13 +195,6 @@ const USER = JSON.parse(localStorage.getItem("user") || "null");
 
 if (!TOKEN || !USER) { window.location.href = "/login"; }
 
-const packages = {
-    starter:{ name:"STARTER", price:"Rp 25K", quota:50, scrolls:10 },
-    basic:{ name:"BASIC", price:"Rp 69K", quota:200, scrolls:20 },
-    pro:{ name:"PRO", price:"Rp 149K", quota:500, scrolls:40 },
-    bisnis:{ name:"BISNIS", price:"Rp 299K", quota:1500, scrolls:50 },
-};
-
 // ── Toast ──
 function toast(msg, type="success") {
     const el = document.createElement("div");
@@ -237,7 +230,7 @@ async function loadOverview() {
     document.getElementById("sidebar-email").textContent = USER.email;
     document.getElementById("welcome-text").textContent = "Halo, "+(USER.name||USER.email.split("@")[0])+"!";
     const d = await api("/api/license/status");
-    if (d.error) return;
+    if (d.error) { document.getElementById("status-sub").textContent = "Gagal memuat status. Refresh halaman."; return; }
     document.getElementById("api-key-display").textContent = d.api_key||"---";
     const lic = d.license;
     document.getElementById("stats-grid").innerHTML = lic ? `
@@ -247,12 +240,30 @@ async function loadOverview() {
         <div class="stat"><div class="val">${lic.max_scrolls}</div><div class="lbl">Max Scroll</div></div>
     ` : `<div class="stat" style="grid-column:1/-1"><div class="val">-</div><div class="lbl">Belum punya lisensi</div></div>`;
     document.getElementById("status-sub").textContent = d.is_banned ? "Akun dibanned" : (lic ? `Paket ${lic.package.toUpperCase()} aktif` : "Silakan beli paket");
-    document.getElementById("pricing-grid").innerHTML = Object.entries(packages).map(([k,p])=>`
-        <div class="price-card" onclick="buy('${k}')">
-            <div class="tier">${p.name}</div><div class="amt">${p.price}</div>
-            <div class="det">${p.quota}x pencarian<br>Maks ${p.scrolls} scroll</div>
-            <span class="buy">Beli</span>
-        </div>`).join("");
+    // Fetch pricing from server (source of truth)
+    try {
+        const pkgs = await api("/api/packages");
+        document.getElementById("pricing-grid").innerHTML = Object.entries(pkgs).map(([k,p])=>`
+            <div class="price-card" onclick="buy('${k}')">
+                <div class="tier">${p.name}</div><div class="amt">Rp ${(p.price/1000).toFixed(0)}K</div>
+                <div class="det">${p.quota}x pencarian<br>Maks ${p.max_scrolls} scroll</div>
+                <span class="buy">Beli</span>
+            </div>`).join("");
+    } catch(_) {
+        // Fallback
+        const packages = {
+            starter:{ name:"STARTER", price:"Rp 25K", quota:50, scrolls:10 },
+            basic:{ name:"BASIC", price:"Rp 69K", quota:200, scrolls:20 },
+            pro:{ name:"PRO", price:"Rp 149K", quota:500, scrolls:40 },
+            bisnis:{ name:"BISNIS", price:"Rp 299K", quota:1500, scrolls:50 },
+        };
+        document.getElementById("pricing-grid").innerHTML = Object.entries(packages).map(([k,p])=>`
+            <div class="price-card" onclick="buy('${k}')">
+                <div class="tier">${p.name}</div><div class="amt">${p.price}</div>
+                <div class="det">${p.quota}x pencarian<br>Maks ${p.scrolls} scroll</div>
+                <span class="buy">Beli</span>
+            </div>`).join("");
+    }
 }
 
 function copyKey() {

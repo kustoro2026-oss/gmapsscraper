@@ -202,6 +202,21 @@ async def health():
     return {"status": "ok", "server": "GMaps Scraper License Server"}
 
 
+@app.get("/api/packages")
+async def list_packages():
+    """Daftar paket & harga (diambil dari source of truth PACKAGES)."""
+    return JSONResponse({
+        pkg_key: {
+            "key": pkg_key,
+            "name": pkg["name"],
+            "price": pkg["price"],
+            "quota": pkg["quota"],
+            "max_scrolls": pkg["max_scrolls"],
+        }
+        for pkg_key, pkg in PACKAGES.items()
+    })
+
+
 @app.get("/api/debug/apikey/{api_key}")
 async def debug_apikey(api_key: str, db: AsyncSession = Depends(get_db)):
     """Debug endpoint: check if API key exists."""
@@ -381,15 +396,19 @@ async def verify_email(token: str = "", db: AsyncSession = Depends(get_db)):
         api_key = ApiKey(id=uuid.uuid4(), user_id=user.id, key=uuid.uuid4().hex)
         db.add(api_key)
 
-    # Auto-create trial license
-    trial_license = License(
-        id=uuid.uuid4(),
-        user_id=user.id,
-        package=PackageType.trial,
-        total_quota=10,
-        max_scrolls=1,
+    # Auto-create trial license — ONLY if user has no licenses yet
+    existing_lic = await db.scalar(
+        select(License).where(License.user_id == user.id).limit(1)
     )
-    db.add(trial_license)
+    if not existing_lic:
+        trial_license = License(
+            id=uuid.uuid4(),
+            user_id=user.id,
+            package=PackageType.trial,
+            total_quota=10,
+            max_scrolls=1,
+        )
+        db.add(trial_license)
 
     await db.flush()
 
@@ -770,14 +789,21 @@ async def desktop_prestrape(
     scrolls: int = Form(1),
 ):
     """Generate pre-scrape token + consume quota BEFORE scraping."""
-    if lic.used_quota >= lic.total_quota:
-        raise HTTPException(status_code=402, detail="Quota habis")
-
     max_scrolls = _resolve_max_scrolls(lic.package)
-    actual_scrolls = min(scrolls, max_scrolls)  # clamp ke batas paket
+    actual_scrolls = min(scrolls, max_scrolls)
 
-    # Consume quota immediately
-    lic.used_quota += 1
+    # Atomic quota consumption (TOCTOU-safe)
+    result = await db.execute(
+        text("UPDATE licenses SET used_quota = used_quota + 1 "
+             "WHERE id = :lid AND used_quota < total_quota "
+             "RETURNING used_quota, total_quota"),
+        {"lid": lic.id},
+    )
+    updated = result.one_or_none()
+    if not updated:
+        raise HTTPException(status_code=402, detail="Quota habis")
+    # Refresh ORM object agar konsisten
+    lic.used_quota, lic.total_quota = updated.used_quota, updated.total_quota
 
     # Generate signed token dengan batas paket (server enforcement)
     token = generate_prestrape_token(str(lic.user_id), keyword, max_scrolls)
@@ -906,6 +932,19 @@ async def payment_callback(request: Request, db: AsyncSession = Depends(get_db))
     txn.payment_method = payment_method
 
     if result_code == "00":  # Success
+        # IDEMPOTENCY GUARD: cegah duplicate callback buat multiple licenses
+        if txn.status == TransactionStatus.success:
+            return JSONResponse({"success": True, "duplicate": True})
+
+        # Verify amount matches package price (defense in depth)
+        pkg = PACKAGES.get(txn.product.value, {})
+        expected_amount = pkg.get("price")
+        if expected_amount and amount != expected_amount:
+            print(f"   [PAYMENT ERROR] Amount mismatch: got {amount}, expected {expected_amount}")
+            txn.status = TransactionStatus.failed
+            await db.flush()
+            raise HTTPException(status_code=400, detail="Amount mismatch")
+
         # Double-verifikasi: cek status langsung ke Duitku (defense in depth)
         try:
             status = await check_transaction(merchant_order_id)
@@ -915,16 +954,22 @@ async def payment_callback(request: Request, db: AsyncSession = Depends(get_db))
             print(f"   [PAYMENT WARN] Cannot double-check with Duitku: {e}")
 
         txn.status = TransactionStatus.success
-        # Generate invoice number
         date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
         txn.invoice_number = f"INV-{date_str}-{uuid.uuid4().hex[:4].upper()}"
-        pkg = PACKAGES.get(txn.product.value, {})
-        # Create license
+
+        # Deactivate ALL old licenses first (Bug 2 fix)
+        await db.execute(
+            text("UPDATE licenses SET is_active = false WHERE user_id = :uid"),
+            {"uid": txn.user_id},
+        )
+
+        # Create new license
         lic = License(
             id=uuid.uuid4(),
             user_id=txn.user_id,
             package=txn.product,
             total_quota=pkg.get("quota", 25),
+            used_quota=0,
             max_scrolls=pkg.get("max_scrolls", 10),
             is_active=True,
         )
