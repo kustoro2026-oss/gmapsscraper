@@ -312,11 +312,16 @@ async def register(
         verify_url = f"{SERVER_URL}/api/auth/verify-email?token={verify_token}"
         send_verification_email(email, name, verify_url)
 
-        return JSONResponse({
+        resp = {
             "success": True,
             "message": "Registrasi berhasil! Cek email kamu untuk verifikasi.",
             "need_verify": True,
-        })
+        }
+        # Fallback: kalau SMTP belum diset, tampilkan link langsung
+        if not os.environ.get("SMTP_FROM") or not os.environ.get("SMTP_PASSWORD"):
+            resp["verify_url"] = verify_url
+            resp["message"] += " (SMTP belum dikonfigurasi — link verifikasi disertakan)"
+        return JSONResponse(resp)
     except HTTPException:
         raise
     except Exception as e:

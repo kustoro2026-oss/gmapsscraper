@@ -158,11 +158,15 @@ async function doRegister(e) {
         const resp = await fetch("/api/auth/register", { method:"POST", body:fd });
         const data = await resp.json();
         if (data.success) {
-            setMsg("reg-msg", data.message, "ok");
             if (data.need_verify) {
-                // Tampilkan pesan verifikasi, jangan auto-login
+                let msg = data.message;
+                if (data.verify_url) {
+                    msg += '<br><a href="'+data.verify_url+'" style="color:var(--green);font-size:13px;">👉 Klik di sini untuk verifikasi email</a>';
+                } else {
+                    msg += '<br><small style="color:var(--dim);">Belum dapat email? <a href="#" onclick="resendVerify(\''+document.getElementById("reg-email").value.trim()+'\');return false;" style="color:var(--blue);">Kirim ulang</a></small>';
+                }
+                setMsg("reg-msg", msg, "ok");
                 document.getElementById("reg-btn").style.display = "none";
-                document.getElementById("reg-msg").innerHTML += '<br><small style="color:var(--dim);">Belum dapat email? <a href="#" onclick="resendVerify(\''+document.getElementById("reg-email").value.trim()+'\');return false;" style="color:var(--blue);">Kirim ulang</a></small>';
             } else {
                 localStorage.setItem("token", data.token);
                 localStorage.setItem("user", JSON.stringify(data.user));
