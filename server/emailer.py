@@ -5,12 +5,8 @@ import threading
 import httpx
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-RESEND_FROM = os.environ.get("RESEND_FROM", "onboarding@resend.dev")
+RESEND_FROM = os.environ.get("RESEND_FROM", "noreply@gmapsscraper.pro")
 RESEND_API_URL = "https://api.resend.com/emails"
-
-if RESEND_API_KEY and RESEND_FROM == "onboarding@resend.dev":
-    print("   [EMAIL NOTE] Pakai sender bawaan Resend (onboarding@resend.dev).")
-    print("   [EMAIL NOTE] Untuk pakai domain sendiri, set RESEND_FROM=GMaps Scraper <noreply@gmapsscraper.pro>")
 
 
 def _send(subject: str, to_email: str, body: str):
@@ -35,10 +31,10 @@ def _send(subject: str, to_email: str, body: str):
             if resp.status_code == 200:
                 print(f"   [EMAIL] Sent to {to_email} — {subject}")
             elif resp.status_code == 422:
-                print(f"   [EMAIL ERROR] 422 — domain di RESEND_FROM harus diverifikasi dulu di resend.com/domains")
-                print(f"   [EMAIL ERROR] Response: {resp.text[:200]}")
+                print(f"   [EMAIL ERROR] 422 — from='{RESEND_FROM}'. Pastikan domain sudah diverifikasi di resend.com/domains")
+                print(f"   [EMAIL ERROR] Response: {resp.text[:300]}")
             else:
-                print(f"   [EMAIL ERROR] {resp.status_code}: {resp.text[:200]}")
+                print(f"   [EMAIL ERROR] {resp.status_code}: {resp.text[:300]}")
         except Exception as e:
             print(f"   [EMAIL ERROR] {e}")
 
