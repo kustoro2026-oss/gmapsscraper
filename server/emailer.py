@@ -1,103 +1,78 @@
-"""Email sender via Gmail SMTP — OTP, transaction confirmations, welcome emails."""
+"""Email sender via Resend API — non-blocking with httpx."""
 
 import os
-import smtplib
+import json
 import threading
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import httpx
 
-SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", "465"))
-SMTP_FROM = os.environ.get("SMTP_FROM", "")
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+RESEND_FROM = os.environ.get("RESEND_FROM", "GMaps Scraper <noreply@gmapsscraper.pro>")
+RESEND_API_URL = "https://api.resend.com/emails"
 
 
-def _send(email: MIMEMultipart):
-    """Send email in background thread — non-blocking."""
+def _send(subject: str, to_email: str, body: str):
+    """Send email via Resend API in background thread — non-blocking."""
     def _do():
         try:
-            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as s:
-                s.login(SMTP_FROM, SMTP_PASSWORD)
-                s.send_message(email)
-            print(f"   [EMAIL] Sent to {email['To']} — {email['Subject']}")
+            payload = {
+                "from": RESEND_FROM,
+                "to": [to_email],
+                "subject": subject,
+                "html": body.replace("\n", "<br>"),
+            }
+            resp = httpx.post(
+                RESEND_API_URL,
+                json=payload,
+                headers={
+                    "Authorization": f"Bearer {RESEND_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                timeout=15,
+            )
+            if resp.status_code == 200:
+                print(f"   [EMAIL] Sent to {to_email} — {subject}")
+            else:
+                print(f"   [EMAIL ERROR] {resp.status_code}: {resp.text}")
         except Exception as e:
             print(f"   [EMAIL ERROR] {e}")
 
-    if not SMTP_FROM or not SMTP_PASSWORD:
-        print(f"   [EMAIL SKIP] SMTP not configured — would send: {email['Subject']} to {email['To']}")
+    if not RESEND_API_KEY:
+        print(f"   [EMAIL SKIP] RESEND_API_KEY not configured — would send: {subject} to {to_email}")
         return
     threading.Thread(target=_do, daemon=True).start()
 
 
 def send_welcome_email(to_email: str, name: str):
-    """Send welcome email after first login."""
-    msg = MIMEMultipart()
-    msg["Subject"] = "Selamat Datang di GMaps Scraper!"
-    msg["From"] = SMTP_FROM
-    msg["To"] = to_email
-
-    body = f"""Halo {name},
-
-Selamat datang di GMaps Scraper!
-
-Kamu sudah bisa langsung mencoba:
-• 10x scraping gratis (trial)
-• Desktop App untuk Windows
-• Export CSV
-
-Login ke dashboard: https://gmapsscraper.pro/dashboard
-
-Kalau ada pertanyaan, balas email ini aja.
-
-—
-GMaps Scraper"""
-    msg.attach(MIMEText(body, "plain"))
-    _send(msg)
+    body = f"""Halo {name},<br><br>
+Selamat datang di GMaps Scraper!<br><br>
+Kamu sudah bisa langsung mencoba:<br>
+• 10x scraping gratis (trial)<br>
+• Desktop App untuk Windows<br>
+• Export CSV<br><br>
+Login ke dashboard: https://gmapsscraper.pro/dashboard<br><br>
+Kalau ada pertanyaan, balas email ini aja.<br><br>
+—<br>GMaps Scraper"""
+    _send("Selamat Datang di GMaps Scraper!", to_email, body)
 
 
 def send_payment_confirmation(to_email: str, name: str, package_name: str, amount: int, invoice_no: str):
-    """Send payment confirmation after successful transaction."""
-    msg = MIMEMultipart()
-    msg["Subject"] = f"Pembayaran Berhasil — {package_name}"
-    msg["From"] = SMTP_FROM
-    msg["To"] = to_email
-
-    body = f"""Halo {name},
-
-Pembayaran kamu sudah berhasil dikonfirmasi.
-
-Detail:
-• Paket: {package_name}
-• Jumlah: Rp {amount:,}
-• Invoice: {invoice_no}
-
-Quota sudah aktif dan siap digunakan di Desktop App.
-
-Login: https://gmapsscraper.pro/dashboard
-
-—
-GMaps Scraper"""
-    msg.attach(MIMEText(body, "plain"))
-    _send(msg)
+    body = f"""Halo {name},<br><br>
+Pembayaran kamu sudah berhasil dikonfirmasi.<br><br>
+Detail:<br>
+• Paket: {package_name}<br>
+• Jumlah: Rp {amount:,}<br>
+• Invoice: {invoice_no}<br><br>
+Quota sudah aktif dan siap digunakan di Desktop App.<br><br>
+Login: https://gmapsscraper.pro/dashboard<br><br>
+—<br>GMaps Scraper"""
+    _send(f"Pembayaran Berhasil — {package_name}", to_email, body)
 
 
 def send_verification_email(to_email: str, name: str, verify_url: str):
-    """Send email verification link after registration."""
-    msg = MIMEMultipart()
-    msg["Subject"] = "Verifikasi Email — GMaps Scraper"
-    msg["From"] = SMTP_FROM
-    msg["To"] = to_email
-
-    body = f"""Halo {name},
-
-Terima kasih sudah mendaftar di GMaps Scraper!
-
-Klik link di bawah untuk verifikasi email kamu:
-{verify_url}
-
-Link ini berlaku 24 jam. Kalau kamu tidak merasa mendaftar, abaikan email ini.
-
-—
-GMaps Scraper"""
-    msg.attach(MIMEText(body, "plain"))
-    _send(msg)
+    body = f"""Halo {name},<br><br>
+Terima kasih sudah mendaftar di GMaps Scraper!<br><br>
+Klik link di bawah untuk verifikasi email kamu:<br>
+<a href="{verify_url}">{verify_url}</a><br><br>
+Link ini berlaku 24 jam. Kalau kamu tidak merasa mendaftar, abaikan email ini.<br><br>
+—<br>GMaps Scraper"""
+    _send("Verifikasi Email — GMaps Scraper", to_email, body)

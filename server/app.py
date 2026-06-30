@@ -318,8 +318,8 @@ async def register(
             "need_verify": True,
             "verify_url": verify_url,
         }
-        if not os.environ.get("SMTP_FROM") or not os.environ.get("SMTP_PASSWORD"):
-            resp["message"] += " (SMTP belum dikonfigurasi)"
+        if not os.environ.get("RESEND_API_KEY"):
+            resp["message"] += " (Resend API belum dikonfigurasi)"
         return JSONResponse(resp)
     except HTTPException:
         raise
