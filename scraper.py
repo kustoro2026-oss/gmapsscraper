@@ -577,16 +577,20 @@ def main():
 
     args = parser.parse_args()
 
-    # Jika token disediakan tapi tidak valid, tolak scraping
-    if args.token:
-        from scraper import validate_token as _vt
-        payload = validate_token(args.token)
-        if payload is None:
-            print("PROGRESS:0:TOKEN REJECTED — scraping dibatalkan")
-            print("RESULT:none:0")
-            return
-        # Override max_scrolls dari token server
-        args.max_scrolls = min(args.max_scrolls, payload["max_scrolls"])
+    # Token WAJIB — tolak scraping tanpa token valid
+    if not args.token:
+        print("PROGRESS:0:TOKEN REQUIRED — scraper hanya bisa dijalankan via aplikasi desktop")
+        print("RESULT:none:0")
+        return
+
+    payload = validate_token(args.token)
+    if payload is None:
+        print("PROGRESS:0:TOKEN REJECTED — scraping dibatalkan")
+        print("RESULT:none:0")
+        return
+
+    # Override max_scrolls dari token server
+    args.max_scrolls = min(args.max_scrolls, payload["max_scrolls"])
 
     fields = [f.strip() for f in args.fields.split(",") if f.strip()]
     lat, lng = args.lat, args.lng

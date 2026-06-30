@@ -124,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   static const _minScraperSize = 1024 * 1024; // 1 MB minimum
-  static const _expectedScraperHash = 'd15f2c58c5a15736c6db62d294447e88172599cf99ecc8dd46489645ad68026d';
+  static const _expectedScraperHash = 'd6bda5f562fc07e2bd940d1e7bb6fff64fda433c359deba6d88a0307a00bc652';
 
   bool _verifyScraper(File file) {
     try {
