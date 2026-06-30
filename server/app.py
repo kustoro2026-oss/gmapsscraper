@@ -767,27 +767,29 @@ async def desktop_prestrape(
     lic: License = Depends(get_license_by_api_key),
     db: AsyncSession = Depends(get_db),
     keyword: str = Form(""),
+    scrolls: int = Form(1),
 ):
     """Generate pre-scrape token + consume quota BEFORE scraping."""
     if lic.used_quota >= lic.total_quota:
         raise HTTPException(status_code=402, detail="Quota habis")
 
     max_scrolls = _resolve_max_scrolls(lic.package)
+    actual_scrolls = min(scrolls, max_scrolls)  # clamp ke batas paket
 
     # Consume quota immediately
     lic.used_quota += 1
 
-    # Generate signed token
+    # Generate signed token dengan batas paket (server enforcement)
     token = generate_prestrape_token(str(lic.user_id), keyword, max_scrolls)
 
-    # Log (results_count added later by desktop/use or we skip use)
+    # Log: catat scroll yang benar-benar dipakai user
     log = UsageLog(
         id=uuid.uuid4(),
         user_id=lic.user_id,
         license_id=lic.id,
         keyword=keyword[:255] if keyword else None,
         results_count=0,
-        max_scrolls=max_scrolls,
+        max_scrolls=actual_scrolls,
     )
     db.add(log)
     await db.flush()

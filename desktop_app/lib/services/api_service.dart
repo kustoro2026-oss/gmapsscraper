@@ -107,12 +107,12 @@ class ApiService {
     int remaining,
     String logId,
     String? error,
-  })> preScrape(String apiKey, {String keyword = ''}) async {
+  })> preScrape(String apiKey, {String keyword = '', int scrolls = 1}) async {
     try {
       final resp = await http.post(
         Uri.parse('$baseUrl/api/desktop/pre-scrape'),
         headers: {'Authorization': 'Bearer $apiKey'},
-        body: {'keyword': keyword},
+        body: {'keyword': keyword, 'scrolls': scrolls.toString()},
       ).timeout(const Duration(seconds: 10));
 
       Map<String, dynamic> data;

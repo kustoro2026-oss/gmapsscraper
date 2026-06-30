@@ -265,7 +265,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final keyword = _keywordController.text.trim();
     setState(() => _progressDetail = 'Meminta token scraping...');
 
-    final psResult = await widget.apiService.preScrape(widget.apiKey, keyword: keyword);
+    final psResult = await widget.apiService.preScrape(widget.apiKey, keyword: keyword, scrolls: _maxScrolls);
 
     if (!mounted) return;
 
