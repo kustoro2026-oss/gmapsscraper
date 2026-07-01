@@ -89,12 +89,15 @@ def validate_email(email: str) -> str | None:
 
 # ── Pre-Scrape Token (HMAC) ────────────────────────────────────────
 
-_PRESTRAPE_SECRET = os.environ.get("PRESTRAPE_SECRET", "gmapsscraper2026prestrape").encode()
+_PRESTRAPE_SECRET_RAW = os.environ.get("PRESTRAPE_SECRET", "")
+if not _PRESTRAPE_SECRET_RAW:
+    raise RuntimeError("PRESTRAPE_SECRET env var harus di-set")
+_PRESTRAPE_SECRET = _PRESTRAPE_SECRET_RAW.encode()
 _PRESTRAPE_TTL = 300  # 5 menit
 
 # ── Download URL ───────────────────────────────────────────────────
 
-DOWNLOAD_URL = os.environ.get("DOWNLOAD_URL", "/login")
+DOWNLOAD_URL = os.environ.get("DOWNLOAD_URL", "#download")
 
 def generate_prestrape_token(user_id: str, keyword: str, max_scrolls: int) -> str:
     ts = int(time_mod.time())
@@ -180,7 +183,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -445,7 +448,7 @@ async def verify_email(token: str = "", db: AsyncSession = Depends(get_db)):
 
     # Login otomatis: buat JWT & redirect ke dashboard
     token_jwt = create_token(str(user.id), user.role.value)
-    return RedirectResponse(url=f"/dashboard?token={token_jwt}&name={user.name or ''}&email={user.email}&api_key={api_key.key}")
+    return RedirectResponse(url=f"/dashboard?token={token_jwt}&name={user.name or ''}&email={user.email}&role={user.role.value}&api_key={api_key.key}")
 
 
 @app.post("/api/auth/resend-verification")

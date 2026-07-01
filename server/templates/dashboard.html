@@ -100,7 +100,7 @@
         .pm-item .pm-fee { font-size:12px; color:var(--dim); }
 
         @media (max-width:768px) {
-            .sidebar { width:200px; transform:translateX(-200px); transition:transform 0.25s ease; }
+            .sidebar { width:240px; transform:translateX(-240px); transition:transform 0.25s ease; }
             .sidebar.open { transform:translateX(0); }
             .main { margin-left:0; max-width:100%; padding:16px; }
             .hamburger { display:flex !important; }
@@ -332,7 +332,7 @@ async function loadOverview() {
 }
 
 function copyKey() {
-    navigator.clipboard.writeText(document.getElementById("api-key-display").textContent).then(()=>toast("API key dicopy!"));
+    navigator.clipboard.writeText(document.getElementById("api-key-display").textContent).then(()=>toast("API key dicopy!")).catch(()=>toast("Gagal copy — coba manual","error"));
 }
 async function buy(key) {
     // Ambil metode pembayaran lalu tampilkan modal

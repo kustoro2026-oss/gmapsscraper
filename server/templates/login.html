@@ -52,9 +52,9 @@
         <p class="sub">Masuk dengan email & password.</p>
         <form onsubmit="doLogin(event)">
             <label>Email</label>
-            <input type="email" id="login-email" placeholder="kamu@email.com" required autofocus>
+            <input type="email" id="login-email" placeholder="kamu@email.com" required autofocus autocomplete="email">
             <label>Password</label>
-            <input type="password" id="login-password" placeholder="Password kamu" required>
+            <input type="password" id="login-password" placeholder="Password kamu" required autocomplete="current-password">
             <button type="submit" class="btn btn-blue" id="login-btn">Masuk</button>
         </form>
         <div id="login-msg" class="msg hidden"></div>
@@ -70,7 +70,9 @@
             <label>Email</label>
             <input type="email" id="reg-email" placeholder="Gunakan email aktif (contoh: kamu@gmail.com)" required>
             <label>Password</label>
-            <input type="password" id="reg-password" placeholder="Minimal 6 karakter" required minlength="6">
+            <input type="password" id="reg-password" placeholder="Minimal 6 karakter" required minlength="6" autocomplete="new-password">
+            <label>Konfirmasi Password</label>
+            <input type="password" id="reg-password2" placeholder="Ulangi password" required minlength="6" autocomplete="new-password">
             <button type="submit" class="btn btn-blue" id="reg-btn">Daftar Sekarang</button>
         </form>
         <div id="reg-msg" class="msg hidden"></div>
@@ -154,7 +156,9 @@ async function doRegister(e) {
     setMsg("reg-msg", "", "ok");
     try {
         const pw = document.getElementById("reg-password").value;
+        const pw2 = document.getElementById("reg-password2").value;
         if (pw.length < 6) { setMsg("reg-msg", "Password minimal 6 karakter", "err"); btn.disabled=false; btn.textContent="Daftar Sekarang"; return; }
+        if (pw !== pw2) { setMsg("reg-msg", "Password tidak cocok", "err"); btn.disabled=false; btn.textContent="Daftar Sekarang"; return; }
         const fd = new FormData();
         fd.append("name", document.getElementById("reg-name").value.trim());
         fd.append("email", document.getElementById("reg-email").value.trim());
@@ -168,6 +172,7 @@ async function doRegister(e) {
                 msg += '<br><small style="color:var(--dim);">Atau cek inbox email kamu. <a href="#" onclick="resendVerify(\''+document.getElementById("reg-email").value.trim()+'\');return false;" style="color:var(--blue);">Kirim ulang</a></small>';
                 setMsg("reg-msg", msg, "ok");
                 document.getElementById("reg-btn").style.display = "none";
+                return;
             } else {
                 localStorage.setItem("token", data.token);
                 localStorage.setItem("user", JSON.stringify(data.user));
