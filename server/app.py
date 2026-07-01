@@ -91,7 +91,9 @@ def validate_email(email: str) -> str | None:
 
 _PRESTRAPE_SECRET_RAW = os.environ.get("PRESTRAPE_SECRET", "")
 if not _PRESTRAPE_SECRET_RAW:
-    raise RuntimeError("PRESTRAPE_SECRET env var harus di-set")
+    import secrets
+    _PRESTRAPE_SECRET_RAW = secrets.token_hex(32)
+    print("[WARN] PRESTRAPE_SECRET env var tidak di-set. Menggunakan random secret (akan berubah tiap restart).")
 _PRESTRAPE_SECRET = _PRESTRAPE_SECRET_RAW.encode()
 _PRESTRAPE_TTL = 300  # 5 menit
 
