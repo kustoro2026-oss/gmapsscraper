@@ -82,6 +82,19 @@
         .toast-error { background:#7f1d1d; color:var(--red); border:1px solid #dc2626; }
         @keyframes slideIn { from { transform:translateX(100%);opacity:0; } to { transform:translateX(0);opacity:1; } }
 
+        /* Payment Method Modal */
+        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:100; justify-content:center; align-items:center; }
+        .modal-overlay.show { display:flex; }
+        .modal { background:var(--bg2); border:1px solid var(--border); border-radius:var(--r); padding:24px; max-width:420px; width:90%; max-height:80vh; overflow-y:auto; }
+        .modal h3 { font-size:16px; margin-bottom:16px; }
+        .modal-close { float:right; background:none; border:none; color:var(--dim); font-size:20px; cursor:pointer; }
+        .pm-list { display:flex; flex-direction:column; gap:8px; }
+        .pm-item { display:flex; align-items:center; gap:12px; padding:12px; background:var(--bg); border:1px solid var(--border); border-radius:8px; cursor:pointer; transition:all 0.15s; }
+        .pm-item:hover { border-color:var(--blue); }
+        .pm-item img { width:32px; height:32px; border-radius:4px; object-fit:contain; }
+        .pm-item .pm-name { font-size:14px; font-weight:500; flex:1; }
+        .pm-item .pm-fee { font-size:12px; color:var(--dim); }
+
         @media (max-width:768px) {
             .sidebar { width:200px; }
             .main { margin-left:200px; max-width:calc(100% - 200px); padding:20px; }
@@ -112,6 +125,15 @@
         <div id="sidebar-email">---</div>
     </div>
 </aside>
+
+<!-- Payment Method Modal -->
+<div class="modal-overlay" id="pm-modal">
+    <div class="modal">
+        <button class="modal-close" onclick="closePMModal()">&times;</button>
+        <h3>Pilih Metode Pembayaran</h3>
+        <div class="pm-list" id="pm-list">Memuat...</div>
+    </div>
+</div>
 
 <!-- Main Content -->
 <main class="main">
@@ -270,7 +292,38 @@ function copyKey() {
     navigator.clipboard.writeText(document.getElementById("api-key-display").textContent).then(()=>toast("API key dicopy!"));
 }
 async function buy(key) {
-    const fd = new FormData(); fd.append("package_key", key);
+    // Ambil metode pembayaran lalu tampilkan modal
+    let methods = [];
+    try {
+        const r = await api("/api/payment/methods");
+        methods = r.methods || [];
+    } catch(_) {}
+    if (methods.length === 0) {
+        // Fallback: langsung create invoice dengan VC
+        const fd = new FormData(); fd.append("package_key", key);
+        const d = await api("/api/payment/create", "POST", fd);
+        if (d.payment_url) { window.open(d.payment_url,"_blank"); toast("Selesaikan pembayaran di tab baru. Refresh setelah bayar."); }
+        else { toast(d.detail||"Gagal","error"); }
+        return;
+    }
+    document.getElementById("pm-list").innerHTML = methods.map(m=>`
+        <div class="pm-item" onclick="createInvoice('${key}','${m.paymentMethod}')">
+            <img src="${m.paymentImage||''}" alt="" onerror="this.style.display='none'" loading="lazy">
+            <span class="pm-name">${m.paymentName}</span>
+            <span class="pm-fee">${m.totalFee&&m.totalFee!=='0'?'Fee: Rp '+parseInt(m.totalFee).toLocaleString():''}</span>
+        </div>`).join("");
+    document.getElementById("pm-modal").classList.add("show");
+    // Simpan package key di data attribute
+    document.getElementById("pm-modal").dataset.pkg = key;
+}
+
+function closePMModal() {
+    document.getElementById("pm-modal").classList.remove("show");
+}
+
+async function createInvoice(key, method) {
+    closePMModal();
+    const fd = new FormData(); fd.append("package_key", key); fd.append("payment_method", method);
     const d = await api("/api/payment/create", "POST", fd);
     if (d.payment_url) { window.open(d.payment_url,"_blank"); toast("Selesaikan pembayaran di tab baru. Refresh setelah bayar."); }
     else { toast(d.detail||"Gagal","error"); }

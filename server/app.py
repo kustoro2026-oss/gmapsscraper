@@ -28,7 +28,7 @@ from auth import (
     ADMIN_EMAILS, bearer_scheme,
     get_user_by_api_key, get_license_by_api_key,
 )
-from duitku import create_invoice, verify_callback_signature, check_transaction, PACKAGES, _save_packages
+from duitku import create_invoice, verify_callback_signature, check_transaction, get_payment_methods, PACKAGES, _save_packages
 from emailer import send_welcome_email, send_payment_confirmation, send_verification_email
 
 # ── Rate Limiter ──────────────────────────────────────────────────
@@ -880,11 +880,27 @@ async def desktop_update_result(
 #  PAYMENT ROUTES
 # ══════════════════════════════════════════════════════════════════
 
+@app.get("/api/payment/methods")
+async def payment_methods(
+    request: Request,
+    user: User = Depends(get_current_user),
+):
+    """Ambil daftar metode pembayaran yang aktif."""
+    try:
+        starter_pkg = PACKAGES.get("starter", {})
+        amount = starter_pkg.get("price", 25000)
+        methods = await get_payment_methods(amount)
+        return JSONResponse({"success": True, "methods": methods})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Gagal mengambil metode pembayaran: {e}")
+
+
 @app.post("/api/payment/create")
 @limiter.limit("10/minute")
 async def payment_create(
     request: Request,
     package_key: str = Form(...),
+    payment_method: str = Form("VC"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -908,7 +924,7 @@ async def payment_create(
     await db.flush()
 
     try:
-        invoice = await create_invoice(package_key, user.email, merchant_order_id, user.name or "")
+        invoice = await create_invoice(package_key, user.email, merchant_order_id, user.name or "", payment_method)
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Gagal membuat invoice: {e}")

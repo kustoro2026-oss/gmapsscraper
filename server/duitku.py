@@ -61,6 +61,12 @@ def _hmac_sign(payload: str) -> str:
     return hmac.new(DUITKU_API_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()
 
 
+def make_payment_method_signature(amount: int) -> str:
+    """Signature untuk getPaymentMethod: merchantCode + amount + datetime."""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return _hmac_sign(f"{DUITKU_MERCHANT_CODE}{amount}{now}"), now
+
+
 def make_inquiry_signature(merchant_order_id: str, amount: int) -> str:
     """Signature untuk inquiry: merchantCode + merchantOrderId + paymentAmount."""
     return _hmac_sign(f"{DUITKU_MERCHANT_CODE}{merchant_order_id}{amount}")
@@ -79,6 +85,7 @@ async def create_invoice(
     email: str,
     merchant_order_id: str,
     customer_name: str = "",
+    payment_method: str = "VC",
 ) -> dict:
     """Create payment invoice via Duitku v2/inquiry."""
     pkg = PACKAGES.get(package_key)
@@ -94,7 +101,7 @@ async def create_invoice(
     payload = {
         "merchantCode": DUITKU_MERCHANT_CODE,
         "paymentAmount": amount,
-        "paymentMethod": "VC",
+        "paymentMethod": payment_method,
         "merchantOrderId": merchant_order_id,
         "productDetails": product_name[:255],
         "email": email,
@@ -148,6 +155,30 @@ async def create_invoice(
             "amount": data.get("amount"),
             "merchantOrderId": merchant_order_id,
         }
+
+
+async def get_payment_methods(amount: int = 10000) -> list:
+    """Ambil daftar metode pembayaran yang aktif."""
+    signature, dt = make_payment_method_signature(amount)
+
+    payload = {
+        "merchantcode": DUITKU_MERCHANT_CODE,
+        "amount": amount,
+        "datetime": dt,
+        "signature": signature,
+    }
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(
+            f"{API_URL}/paymentmethod/getpaymentmethod",
+            json=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        data = resp.json()
+        if data.get("responseCode") != "00":
+            err_msg = data.get("responseMessage") or str(data)
+            raise Exception(f"Duitku get payment methods error: {err_msg}")
+        return data.get("paymentFee", [])
 
 
 async def check_transaction(merchant_order_id: str) -> dict:
