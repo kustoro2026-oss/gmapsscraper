@@ -124,18 +124,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   static const _minScraperSize = 1024 * 1024; // 1 MB minimum
-  static const _expectedScraperHash = 'd6bda5f562fc07e2bd940d1e7bb6fff64fda433c359deba6d88a0307a00bc652';
+  static const _expectedScraperExeHash = 'd6bda5f562fc07e2bd940d1e7bb6fff64fda433c359deba6d88a0307a00bc652';
+  static const _expectedScraperPyHash = '7e37cb0b1b85acac4b7e01143d0194afae1d6b33c9e962faff46b80f2e6fdf7c';
 
   bool _verifyScraper(File file) {
     try {
-      if (file.lengthSync() < _minScraperSize) {
+      final isExe = file.path.toLowerCase().endsWith('.exe');
+      final expectedHash = isExe ? _expectedScraperExeHash : _expectedScraperPyHash;
+      final minSize = isExe ? _minScraperSize : 1024;
+      if (file.lengthSync() < minSize) {
         _logs.add('[SECURITY] File scraper terlalu kecil, mungkin rusak/dimodifikasi.');
         return false;
       }
       final bytes = file.readAsBytesSync();
       final hash = sha256.convert(bytes).toString();
-      if (hash != _expectedScraperHash) {
-        _logs.add('[SECURITY] Hash scraper.exe tidak cocok! File mungkin dimodifikasi.');
+      if (hash != expectedHash) {
+        _logs.add('[SECURITY] Hash scraper tidak cocok! File mungkin dimodifikasi.');
         return false;
       }
       return true;
@@ -167,9 +171,9 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    // 2. Cek scraper.py di folder exe (dev mode)
+    // 2. Cek scraper.py di folder exe (dev mode) — wajib verifikasi hash
     final exePy = File('${exeDir.path}${Platform.pathSeparator}scraper.py');
-    if (exePy.existsSync()) {
+    if (exePy.existsSync() && _verifyScraper(exePy)) {
       setState(() => _scraperPath = exePy.path);
       await prefs.setString('scraper_path', exePy.path);
       return;

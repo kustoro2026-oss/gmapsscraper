@@ -226,21 +226,6 @@ async def list_packages():
     })
 
 
-@app.get("/api/debug/apikey/{api_key}")
-async def debug_apikey(api_key: str, db: AsyncSession = Depends(get_db)):
-    """Debug endpoint: check if API key exists."""
-    result = await db.execute(
-        select(ApiKey).where(ApiKey.key == api_key)
-    )
-    key = result.scalar_one_or_none()
-    if not key:
-        return {"found": False, "api_key": api_key}
-    return {
-        "found": True,
-        "is_active": key.is_active,
-        "user_id": str(key.user_id),
-    }
-
 
 # ── HTML Page Routes ──────────────────────────────────────────────
 
@@ -811,6 +796,7 @@ async def reset_my_key(
 # ══════════════════════════════════════════════════════════════════
 
 @app.get("/api/desktop/status")
+@limiter.limit("30/minute")
 async def desktop_status(
     user: User = Depends(get_user_by_api_key),
     db: AsyncSession = Depends(get_db),
@@ -859,6 +845,7 @@ async def desktop_status(
 
 
 @app.post("/api/desktop/use")
+@limiter.limit("20/minute")
 async def desktop_use_quota(
     lic: License = Depends(get_license_by_api_key),
     db: AsyncSession = Depends(get_db),
@@ -887,6 +874,7 @@ async def desktop_use_quota(
 
 
 @app.post("/api/desktop/pre-scrape")
+@limiter.limit("20/minute")
 async def desktop_prestrape(
     lic: License = Depends(get_license_by_api_key),
     db: AsyncSession = Depends(get_db),
@@ -936,6 +924,7 @@ async def desktop_prestrape(
 
 
 @app.post("/api/desktop/update-result")
+@limiter.limit("30/minute")
 async def desktop_update_result(
     lic: License = Depends(get_license_by_api_key),
     db: AsyncSession = Depends(get_db),
@@ -1036,8 +1025,8 @@ async def payment_callback(request: Request, db: AsyncSession = Depends(get_db))
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail="Invalid amount")
 
-    # Verify HMAC-SHA256 signature
-    if not verify_callback_signature(merchant_code, amount, merchant_order_id, signature):
+    # Verify HMAC-SHA256 signature (gunakan DUITKU_MERCHANT_CODE server-side)
+    if not verify_callback_signature(amount, merchant_order_id, signature):
         raise HTTPException(status_code=400, detail="Invalid callback signature")
 
     # Cari transaksi

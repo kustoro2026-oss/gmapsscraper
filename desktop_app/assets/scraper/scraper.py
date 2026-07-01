@@ -15,7 +15,6 @@ import argparse
 import asyncio as aio
 import csv
 import hashlib
-import hmac
 import json
 import os
 import random
@@ -26,28 +25,23 @@ from datetime import datetime
 
 from playwright.async_api import async_playwright
 
-# ── Pre-Scrape Token Validation ─────────────────────────────────────
-
-_PRETRAPE_SECRET = "gmapsscraper2026prestrape".encode()
-_TTL = 300  # 5 menit
+# ── Pre-Scrape Token Parsing ─────────────────────────────────────
+# Token format: user_id|timestamp|max_scrolls|keyword|signature
+# Verification is done server-side via /api/desktop/update-result
 
 def validate_token(token: str) -> dict | None:
-    """Validate HMAC-signed pre-scrape token. Return payload dict or None."""
+    """Parse pre-scrape token and check TTL. Server re-verifies on update."""
     try:
         parts = token.rsplit("|", 1)
         if len(parts) != 2:
             return None
-        payload_str, sig = parts
-        expected_sig = hmac.new(_PRETRAPE_SECRET, payload_str.encode(), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(sig, expected_sig):
-            print("PROGRESS:0:TOKEN INVALID — signature mismatch")
-            return None
+        payload_str, _sig = parts
         payload_parts = payload_str.split("|")
         if len(payload_parts) < 4:
             return None
         user_id, ts_str, max_scrolls_str, keyword = payload_parts[0], payload_parts[1], payload_parts[2], "|".join(payload_parts[3:])
         ts = int(ts_str)
-        if int(time_mod.time()) - ts > _TTL:
+        if int(time_mod.time()) - ts > 300:
             print("PROGRESS:0:TOKEN EXPIRED")
             return None
         return {

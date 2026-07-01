@@ -72,9 +72,9 @@ def make_inquiry_signature(merchant_order_id: str, amount: int) -> str:
     return _hmac_sign(f"{DUITKU_MERCHANT_CODE}{merchant_order_id}{amount}")
 
 
-def verify_callback_signature(merchant_code: str, amount: int, merchant_order_id: str, signature: str) -> bool:
-    """Verify callback signature: merchantCode + amount + merchantOrderId."""
-    expected = _hmac_sign(f"{merchant_code}{amount}{merchant_order_id}")
+def verify_callback_signature(amount: int, merchant_order_id: str, signature: str) -> bool:
+    """Verify callback signature using server-side merchantCode."""
+    expected = _hmac_sign(f"{DUITKU_MERCHANT_CODE}{amount}{merchant_order_id}")
     return hmac.compare_digest(signature, expected)
 
 
