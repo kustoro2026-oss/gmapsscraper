@@ -28,7 +28,8 @@ if %errorlevel% neq 0 (
 echo.
 echo [3/3] Updating scraper hash & copying to Release...
 cd /d "%~dp0"
-python -c "import hashlib; h=hashlib.sha256(open(r'%CD%\dist\scraper\scraper.exe','rb').read()).hexdigest(); print('SCRAPER_HASH='+h)"
+echo    Computing hashes...
+python -c "import hashlib, re; eh=hashlib.sha256(open(r'%CD%\dist\scraper\scraper.exe','rb').read()).hexdigest(); ph=hashlib.sha256(open(r'%CD%\scraper.py','rb').read()).hexdigest(); print(f'SCRAPER_EXE_HASH={eh}'); d=open(r'%CD%\desktop_app\lib\screens\home_screen.dart','r',encoding='utf-8').read(); d=re.sub(r\"_expectedScraperExeHash = '[a-f0-9]+'\", f\"_expectedScraperExeHash = '{eh}'\", d); d=re.sub(r\"_expectedScraperPyHash = '[a-f0-9]+'\", f\"_expectedScraperPyHash = '{ph}'\", d); open(r'%CD%\desktop_app\lib\screens\home_screen.dart','w',encoding='utf-8').write(d); print(f'SCRAPER_PY_HASH={ph}'); print('home_screen.dart updated!')"
 rmdir /s /q "%~dp0desktop_app\build\windows\x64\runner\Release\scraper" 2>nul
 xcopy /e /i /q "%~dp0dist\scraper" "%~dp0desktop_app\build\windows\x64\runner\Release\scraper"
 if %errorlevel% neq 0 (
@@ -39,7 +40,6 @@ if %errorlevel% neq 0 (
 
 echo.
 echo ==============================================
-echo   DONE!
+echo   DONE! Hashes auto-updated in home_screen.dart.
 echo   App: desktop_app\build\windows\x64\runner\Release\gmaps_scraper_desktop.exe
-echo   NOTE: Update _expectedScraperHash in home_screen.dart with SCRAPER_HASH above!
 echo ==============================================

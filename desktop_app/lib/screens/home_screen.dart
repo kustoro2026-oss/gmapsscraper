@@ -181,9 +181,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // 3. Fallback: cek shared_preferences (user manual pick sebelumnya)
     final savedPath = prefs.getString('scraper_path');
-    if (savedPath != null && File(savedPath).existsSync()) {
-      setState(() => _scraperPath = savedPath);
-      return;
+    if (savedPath != null) {
+      final savedFile = File(savedPath);
+      if (savedFile.existsSync() && _verifyScraper(savedFile)) {
+        setState(() => _scraperPath = savedPath);
+        return;
+      }
+      // File tidak valid — hapus path lama
+      await prefs.remove('scraper_path');
     }
 
     // 4. Cek folder assets (development mode)
@@ -216,9 +221,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
     if (result != null && result.files.single.path != null) {
       final path = result.files.single.path!;
+      final file = File(path);
+      if (!_verifyScraper(file)) {
+        _logs.add('[SECURITY] File yang dipilih GAGAL verifikasi hash!');
+        return;
+      }
       setState(() => _scraperPath = path);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('scraper_path', path);
+      _logs.add('Scraper berhasil diverifikasi & dipilih.');
     }
   }
 
