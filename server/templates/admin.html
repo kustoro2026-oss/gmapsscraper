@@ -47,6 +47,9 @@
         .modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); display:flex; justify-content:center; align-items:center; z-index:100; }
         .modal-card { background:var(--bg2); border-radius:16px; padding:28px; max-width:640px; width:92%; max-height:82vh; overflow-y:auto; border:1px solid var(--border); }
         .modal-card h3 { margin-bottom:14px; }
+        .modal-card label { display:block; font-size:12px; color:var(--dim); margin-bottom:4px; margin-top:10px; }
+        .modal-card input { width:100%; padding:8px 12px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--txt); font-size:14px; margin-bottom:4px; }
+        .modal-card input:focus { outline:none; border-color:var(--blue); }
         .hidden { display:none; }
     </style>
 </head>
@@ -139,7 +142,22 @@ const TOKEN = localStorage.getItem("token");
 const USER = JSON.parse(localStorage.getItem("user")||"null");
 if(!TOKEN){window.location.href="/login";}if(!USER||USER.role!=="admin"){document.body.innerHTML='<div style="display:flex;justify-content:center;align-items:center;height:100vh;color:#ef4444;font-size:20px;background:#0a0f1f;flex-direction:column;"><p>Access Denied — Admin Only</p><a href="/dashboard" style="color:#3b82f6;margin-top:16px;">Kembali ke Dashboard</a></div>';throw new Error("Not admin");}
 
-function switchTab(t){document.querySelectorAll(".tab").forEach(e=>e.classList.remove("active"));document.getElementById("tab-"+t).classList.add("active");document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));event.target.classList.add("active");if(t==="dashboard"){loadDashboard();loadRecentTxns();}if(t==="users")loadUsers();if(t==="transactions")loadTransactions();}
+function switchTab(t){
+    document.querySelectorAll(".tab").forEach(e=>e.classList.remove("active"));
+    document.getElementById("tab-"+t).classList.add("active");
+    document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+    const navBtns = document.querySelectorAll("nav button");
+    const idx = {dashboard:0,users:1,transactions:2,packages:3,activity:4}[t]||0;
+    if(navBtns[idx]) navBtns[idx].classList.add("active");
+    if(t==="dashboard"){loadDashboard();loadRecentTxns();}
+    if(t==="users") loadUsers();
+    if(t==="transactions") loadTransactions();
+    if(t==="packages") loadPackages();
+    if(t==="activity") loadActivity();
+}
+
+function esc(s){if(!s)return"";const d=document.createElement("div");d.textContent=s;return d.innerHTML;}
+
 async function api(p,m="GET",b=null){const o={method:m,headers:{Authorization:"Bearer "+TOKEN}};if(b)o.body=b;const r=await fetch(p,o);if(r.status===401){localStorage.clear();window.location.href="/login";}return r.json();}
 
 // Dashboard
@@ -172,7 +190,107 @@ async function addQuota(uid){const a=parseInt(prompt("Tambah quota:")||"0");if(!
 async function editQuota(uid,c){const n=parseInt(prompt("Total quota baru:",c)||"0");if(!n||n<=0)return;const fd=new FormData();fd.append("new_total",n.toString());await api(`/api/admin/users/${uid}/edit-quota`,"POST",fd);alert("Quota = "+n);viewUser(uid);}
 async function resetKey(uid){if(!confirm("Reset API key?"))return;const d=await api(`/api/admin/users/${uid}/reset-key`,"POST",new FormData());alert("Key baru: "+d.new_api_key);viewUser(uid);}
 async function addLicense(uid){const sel=document.getElementById("lic-pkg-"+uid);if(!sel)return;const pkg=sel.value;const fd=new FormData();fd.append("package_key",pkg);const d=await api(`/api/admin/users/${uid}/add-license`,"POST",fd);alert(d.message||"Lisensi ditambahkan!");closeModal();loadUsers();}
-function esc(s){if(!s)return"";const d=document.createElement("div");d.textContent=s;return d.innerHTML;}
+
+// ── Packages ────────────────────────────────────────────────────
+async function loadPackages(){
+    const pkgs = await api("/api/admin/packages");
+    const tb = document.getElementById("packages-table");
+    const entries = Object.entries(pkgs);
+    tb.innerHTML = entries.length===0
+        ? '<tr><td colspan="6" style="text-align:center;color:var(--dim);padding:30px;">Belum ada paket</td></tr>'
+        : entries.map(([k,p])=>`<tr>
+            <td><code style="color:var(--green);">${esc(k)}</code></td>
+            <td>${esc(p.name)}</td>
+            <td>Rp ${p.price.toLocaleString()}</td>
+            <td>${p.quota}</td>
+            <td>${p.max_scrolls}</td>
+            <td><button class="btn-sm btn-blue" onclick="editPackage('${k}','${esc(p.name).replace(/'/g,"\\'")}',${p.price},${p.quota},${p.max_scrolls})">Edit</button> <button class="btn-sm btn-red" onclick="deletePackage('${k}')">Hapus</button></td>
+        </tr>`).join("");
+}
+
+function showAddPackage(){
+    document.getElementById("pkg-modal-body").innerHTML=`
+        <h3>Tambah Paket Baru</h3>
+        <form onsubmit="saveNewPackage(event)">
+            <label>Key</label><input type="text" id="pkg-key" placeholder="e.g. ultimate" required>
+            <label>Nama</label><input type="text" id="pkg-name" required>
+            <label>Harga (Rp)</label><input type="number" id="pkg-price" required>
+            <label>Quota</label><input type="number" id="pkg-quota" required>
+            <label>Max Scroll</label><input type="number" id="pkg-scrolls" required>
+            <div class="flex" style="margin-top:12px;">
+                <button type="submit" class="btn-sm btn-blue">Simpan</button>
+                <button type="button" class="btn-sm btn-outline" onclick="closePkgModal()">Batal</button>
+            </div>
+        </form>`;
+    document.getElementById("pkg-modal").classList.remove("hidden");
+}
+
+function editPackage(key,name,price,quota,scrolls){
+    document.getElementById("pkg-modal-body").innerHTML=`
+        <h3>Edit Paket: ${esc(name)}</h3>
+        <form onsubmit="saveEditPackage(event,'${key}')">
+            <label>Nama</label><input type="text" id="pkg-name" value="${esc(name)}" required>
+            <label>Harga (Rp)</label><input type="number" id="pkg-price" value="${price}" required>
+            <label>Quota</label><input type="number" id="pkg-quota" value="${quota}" required>
+            <label>Max Scroll</label><input type="number" id="pkg-scrolls" value="${scrolls}" required>
+            <div class="flex" style="margin-top:12px;">
+                <button type="submit" class="btn-sm btn-blue">Simpan</button>
+                <button type="button" class="btn-sm btn-outline" onclick="closePkgModal()">Batal</button>
+            </div>
+        </form>`;
+    document.getElementById("pkg-modal").classList.remove("hidden");
+}
+
+function closePkgModal(){document.getElementById("pkg-modal").classList.add("hidden");}
+
+async function saveNewPackage(e){
+    e.preventDefault();
+    const fd=new FormData();
+    fd.append("package_key",document.getElementById("pkg-key").value.trim());
+    fd.append("name",document.getElementById("pkg-name").value.trim());
+    fd.append("price",document.getElementById("pkg-price").value);
+    fd.append("quota",document.getElementById("pkg-quota").value);
+    fd.append("max_scrolls",document.getElementById("pkg-scrolls").value);
+    const d=await api("/api/admin/packages","POST",fd);
+    if(d.success){closePkgModal();loadPackages();alert("Paket ditambahkan!");}
+    else{alert(d.detail||"Gagal menambah paket");}
+}
+
+async function saveEditPackage(e,key){
+    e.preventDefault();
+    const fd=new FormData();
+    fd.append("name",document.getElementById("pkg-name").value.trim());
+    fd.append("price",document.getElementById("pkg-price").value);
+    fd.append("quota",document.getElementById("pkg-quota").value);
+    fd.append("max_scrolls",document.getElementById("pkg-scrolls").value);
+    const d=await api(`/api/admin/packages/${key}`,"PUT",fd);
+    if(d.success){closePkgModal();loadPackages();alert("Paket diupdate!");}
+    else{alert(d.detail||"Gagal update paket");}
+}
+
+async function deletePackage(key){
+    if(!confirm(`Hapus paket "${key}"? Lisensi existing tidak terpengaruh.`))return;
+    const d=await api(`/api/admin/packages/${key}`,"DELETE");
+    if(d.success){loadPackages();alert("Paket dihapus!");}
+    else{alert(d.detail||"Gagal menghapus paket");}
+}
+
+// ── Activity Log ───────────────────────────────────────────────
+async function loadActivity(){
+    const tb=document.getElementById("activity-table");
+    tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--dim);padding:30px;">Memuat...</td></tr>';
+    try{
+        const d=await api("/api/admin/activity");
+        if(!d.activities||d.activities.length===0){tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--dim);padding:30px;">Belum ada aktivitas</td></tr>';return;}
+        tb.innerHTML=d.activities.map(a=>{
+            const t=new Date(a.created_at);const ts=t.toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"numeric"})+" "+t.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"});
+            const badge=a.type==="transaction"?`<span class="badge ${a.status==='success'?'b-green':a.status==='failed'?'b-red':'b-yellow'}">${a.status}</span>`:'' ;
+            const amt=a.type==="transaction"?`<br><small style="color:var(--dim);">Rp ${a.amount.toLocaleString()}</small>`:'';
+            return `<tr><td>${esc(a.name||a.email)}</td><td>${a.icon} ${esc(a.detail)}${amt}</td><td>${badge||a.status||"-"}</td><td>${ts}</td></tr>`;
+        }).join("");
+    }catch(_){tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--dim);padding:30px;">Gagal memuat activity log</td></tr>';}
+}
+
 loadDashboard();loadRecentTxns();
 </script>
 </body>

@@ -1581,6 +1581,63 @@ async def admin_edit_scrolls(
 
 
 # ══════════════════════════════════════════════════════════════════
+#  ADMIN: ACTIVITY LOG
+# ══════════════════════════════════════════════════════════════════
+
+@app.get("/api/admin/activity")
+async def admin_activity_log(
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Gabungan log: transaksi terbaru + user registrasi terbaru."""
+    try:
+        activities = []
+
+        recent_txns = await db.execute(
+            select(Transaction, User.email, User.name)
+            .join(User, Transaction.user_id == User.id)
+            .order_by(Transaction.created_at.desc())
+            .limit(50)
+        )
+        for txn, u_email, u_name in recent_txns.all():
+            activities.append({
+                "type": "transaction",
+                "icon": "💳" if txn.status.value == "success" else "⏳",
+                "detail": f"{u_email} membeli {txn.product.value.upper()}",
+                "status": txn.status.value,
+                "amount": float(txn.amount),
+                "email": u_email,
+                "name": u_name or u_email.split("@")[0],
+                "created_at": txn.created_at.isoformat() if txn.created_at else None,
+            })
+
+        recent_users = await db.execute(
+            select(User).order_by(User.created_at.desc()).limit(30)
+        )
+        for u in recent_users.scalars().all():
+            activities.append({
+                "type": "registration",
+                "icon": "👤",
+                "detail": f"{u.email} mendaftar",
+                "status": "banned" if u.is_banned else "active",
+                "email": u.email,
+                "name": u.name or u.email.split("@")[0],
+                "created_at": u.created_at.isoformat() if u.created_at else None,
+            })
+
+        activities.sort(key=lambda x: x["created_at"] or "", reverse=True)
+        activities = activities[:100]
+
+        return JSONResponse({"activities": activities})
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ADMIN ACTIVITY ERROR] {e}")
+        import traceback as _tb; _tb.print_exc()
+        return JSONResponse({"detail": str(e)}, status_code=500)
+
+
+# ══════════════════════════════════════════════════════════════════
 #  ERROR HANDLERS
 # ══════════════════════════════════════════════════════════════════
 
