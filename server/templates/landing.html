@@ -524,6 +524,10 @@
 
 <script>
 document.querySelectorAll('.nav-links a').forEach(a=>{a.addEventListener('click',()=>{document.querySelector('.nav-links').classList.remove('open');document.querySelector('.nav-toggle').classList.remove('open')})});
+// Auto-redirect ke dashboard jika sudah login
+if (localStorage.getItem("token") && localStorage.getItem("user")) {
+    window.location.href = "/dashboard";
+}
 </script>
 </body>
 </html>
