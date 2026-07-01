@@ -798,6 +798,7 @@ async def reset_my_key(
 @app.get("/api/desktop/status")
 @limiter.limit("30/minute")
 async def desktop_status(
+    request: Request,
     user: User = Depends(get_user_by_api_key),
     db: AsyncSession = Depends(get_db),
 ):
@@ -847,6 +848,7 @@ async def desktop_status(
 @app.post("/api/desktop/use")
 @limiter.limit("20/minute")
 async def desktop_use_quota(
+    request: Request,
     lic: License = Depends(get_license_by_api_key),
     db: AsyncSession = Depends(get_db),
     keyword: str = Form(""),
@@ -876,6 +878,7 @@ async def desktop_use_quota(
 @app.post("/api/desktop/pre-scrape")
 @limiter.limit("20/minute")
 async def desktop_prestrape(
+    request: Request,
     lic: License = Depends(get_license_by_api_key),
     db: AsyncSession = Depends(get_db),
     keyword: str = Form(""),
@@ -926,6 +929,7 @@ async def desktop_prestrape(
 @app.post("/api/desktop/update-result")
 @limiter.limit("30/minute")
 async def desktop_update_result(
+    request: Request,
     lic: License = Depends(get_license_by_api_key),
     db: AsyncSession = Depends(get_db),
     log_id: str = Form(""),
