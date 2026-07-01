@@ -82,6 +82,10 @@
         .toast-error { background:#7f1d1d; color:var(--red); border:1px solid #dc2626; }
         @keyframes slideIn { from { transform:translateX(100%);opacity:0; } to { transform:translateX(0);opacity:1; } }
 
+        /* Hamburger */
+        .hamburger { display:none; position:fixed; top:12px; left:12px; z-index:20; background:var(--bg2); border:1px solid var(--border); border-radius:8px; width:40px; height:40px; align-items:center; justify-content:center; cursor:pointer; flex-direction:column; gap:5px; padding:0; }
+        .hamburger span { display:block; width:20px; height:2px; background:var(--txt); border-radius:2px; transition:all 0.2s; }
+
         /* Payment Method Modal */
         .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:100; justify-content:center; align-items:center; }
         .modal-overlay.show { display:flex; }
@@ -96,16 +100,43 @@
         .pm-item .pm-fee { font-size:12px; color:var(--dim); }
 
         @media (max-width:768px) {
-            .sidebar { width:200px; }
-            .main { margin-left:200px; max-width:calc(100% - 200px); padding:20px; }
+            .sidebar { width:200px; transform:translateX(-200px); transition:transform 0.25s ease; }
+            .sidebar.open { transform:translateX(0); }
+            .main { margin-left:0; max-width:100%; padding:16px; }
+            .hamburger { display:flex !important; }
+            .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9; }
+            .sidebar-overlay.show { display:block; }
+            .welcome { font-size:22px; }
+            .card { padding:16px; }
+            .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+            .table-wrap table { min-width:500px; }
+            .stats { grid-template-columns:repeat(2,1fr); }
+            .pricing { grid-template-columns:repeat(2,1fr); }
+            .api-box { flex-direction:column; align-items:flex-start; gap:10px; }
+            .api-box button { margin-left:0; }
+            .modal { width:95%; padding:16px; }
+            #toast { bottom:12px; right:12px; left:12px; }
+            .toast { max-width:100%; }
         }
-        @media (max-width:600px) {
-            .sidebar { display:none; }
-            .main { margin-left:0; max-width:100%; }
+        @media (max-width:480px) {
+            .stats { grid-template-columns:repeat(2,1fr); gap:8px; }
+            .stat { padding:14px 10px; }
+            .stat .val { font-size:22px; }
+            .pricing { grid-template-columns:1fr; }
+            .price-card { padding:16px 14px; }
+            .price-card .amt { font-size:22px; }
         }
     </style>
 </head>
 <body>
+
+<!-- Hamburger -->
+<button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">
+    <span></span><span></span><span></span>
+</button>
+
+<!-- Sidebar overlay mobile -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
 
 <!-- Sidebar -->
 <aside class="sidebar">
@@ -159,7 +190,9 @@
     <div class="tab-panel" id="tab-history">
         <div class="card">
             <h2>Riwayat Scraping</h2>
+            <div class="table-wrap">
             <table><thead><tr><th>Keyword</th><th>Scroll</th><th>Hasil</th><th>Tanggal</th></tr></thead><tbody id="history-table"></tbody></table>
+            </div>
             <div class="pagination" id="history-pagination"></div>
         </div>
     </div>
@@ -168,7 +201,9 @@
     <div class="tab-panel" id="tab-invoices">
         <div class="card">
             <h2>Invoice & Transaksi</h2>
+            <div class="table-wrap">
             <table><thead><tr><th>Invoice</th><th>Paket</th><th>Jumlah</th><th>Status</th><th>Tanggal</th><th></th></tr></thead><tbody id="invoice-table"></tbody></table>
+            </div>
             <div class="pagination" id="invoice-pagination"></div>
         </div>
     </div>
@@ -235,15 +270,23 @@ async function api(path, method="GET", body=null) {
 }
 
 // ── Tab ──
+function toggleSidebar() {
+    document.querySelector(".sidebar").classList.toggle("open");
+    document.getElementById("sidebar-overlay").classList.toggle("show");
+}
 function showTab(tab) {
     document.querySelectorAll(".tab-panel").forEach(p=>p.classList.remove("active"));
     document.getElementById("tab-"+tab).classList.add("active");
-    document.querySelectorAll(".nav-item").forEach(b=>b.classList.remove("active"));
-    document.getElementById("nav-"+tab).classList.add("active");
+    const navItems = document.querySelectorAll(".nav-item");
+    navItems.forEach(b=>b.classList.remove("active"));
+    const activeNav = document.getElementById("nav-"+tab);
+    if (activeNav) activeNav.classList.add("active");
     if (tab==="overview") loadOverview();
     if (tab==="history") loadHistory();
     if (tab==="invoices") loadInvoices();
     if (tab==="settings") { document.getElementById("settings-name").value = USER.name||""; }
+    // Close sidebar on mobile after navigation
+    if (window.innerWidth <= 768) toggleSidebar();
 }
 
 // ── Overview ──
