@@ -103,8 +103,12 @@
         .step h3 { font-size:18px; margin-bottom:6px; font-weight:700; }
         .step p { font-size:14px; opacity:0.8; line-height:1.6; }
 
-        /* === DATA FIELDS (cream bg) === */
+        /* === DATA FIELDS + IMAGES (cream bg) === */
         #fields { background:var(--cream); }
+        .why-grid { display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:center; }
+        .why-images { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .why-images .img-top { grid-column:1 / -1; border-radius:16px; width:100%; object-fit:cover; max-height:260px; box-shadow:0 4px 20px rgba(0,0,0,.08); }
+        .why-images .img-bot { border-radius:16px; width:100%; object-fit:cover; height:180px; box-shadow:0 4px 20px rgba(0,0,0,.08); }
         .data-list { display:flex; flex-direction:column; gap:8px; max-width:600px; }
         .data-row { display:flex; align-items:center; gap:14px; padding:16px 22px; background:var(--white); border-radius:9999px; font-weight:600; font-size:15px; }
         .data-row .data-icon { font-size:20px; flex-shrink:0; }
@@ -184,6 +188,15 @@
             .footer-grid { grid-template-columns:1fr 1fr; gap:32px; }
             .footer-brand { grid-column:1/-1; }
             .footer-bottom { flex-direction:column; text-align:center; }
+            .why-grid { grid-template-columns:1fr; gap:32px; }
+            .why-images { grid-template-columns:1fr 1fr; }
+            .why-images .img-top { max-height:200px; }
+            .why-images .img-bot { height:140px; }
+        }
+        @media (max-width:480px) {
+            .why-images { grid-template-columns:1fr; }
+            .why-images .img-top { max-height:180px; }
+            .why-images .img-bot { height:160px; }
         }
         @media (prefers-reduced-motion:reduce) {
             .pill,.field-card,.price-card{ transition:none; }
@@ -316,18 +329,25 @@
     </div>
 </section>
 
-<!-- Data Fields List (cream) -->
+<!-- Data Fields + Images (cream) -->
 <section id="fields">
     <div class="sec-inner">
         <div class="sec-eyebrow">Kenapa GMaps Scraper?</div>
         <h2 class="sec-title">Akurat. Cepat. Aman.</h2>
         <p class="sec-sub">Berbeda dari tools scraping lain — kami prioritaskan akurasi dan keamanan data kamu.</p>
-        <div class="data-list">
-            <div class="data-row"><span class="data-icon">🎯</span> Nomor HP hanya dari tombol berlabel "Telepon"<small>Akurat</small></div>
-            <div class="data-row"><span class="data-icon">🌐</span> Website dari tombol "Website" — bukan teks random<small>Presisi</small></div>
-            <div class="data-row"><span class="data-icon">🔒</span> Pakai IP rumah kamu sendiri — tidak kena blokir<small>Aman</small></div>
-            <div class="data-row"><span class="data-icon">⚡</span> 10 tab paralel — 50 data dalam 2 menit<small>Cepat</small></div>
-            <div class="data-row"><span class="data-icon">📤</span> Export CSV langsung — siap pakai di Excel/CRM<small>Praktis</small></div>
+        <div class="why-grid">
+            <div class="data-list">
+                <div class="data-row"><span class="data-icon">🎯</span> Nomor HP hanya dari tombol berlabel "Telepon"<small>Akurat</small></div>
+                <div class="data-row"><span class="data-icon">🌐</span> Website dari tombol "Website" — bukan teks random<small>Presisi</small></div>
+                <div class="data-row"><span class="data-icon">🔒</span> Pakai IP rumah kamu sendiri — tidak kena blokir<small>Aman</small></div>
+                <div class="data-row"><span class="data-icon">⚡</span> 10 tab paralel — 50 data dalam 2 menit<small>Cepat</small></div>
+                <div class="data-row"><span class="data-icon">📤</span> Export CSV langsung — siap pakai di Excel/CRM<small>Praktis</small></div>
+            </div>
+            <div class="why-images">
+                <img src="/static/rumahmakanbali.png" alt="Scraping rumah makan di Bali" class="img-top" loading="lazy">
+                <img src="/static/pencarianmaps.png" alt="Pencarian di Google Maps" class="img-bot" loading="lazy">
+                <img src="/static/mapsbali.png" alt="Hasil maps Bali" class="img-bot" loading="lazy">
+            </div>
         </div>
     </div>
 </section>
