@@ -370,9 +370,8 @@ async def register(
 
         resp = {
             "success": True,
-            "message": "Registrasi berhasil! Klik link di bawah untuk verifikasi email.",
+            "message": "Registrasi berhasil! Cek email kamu untuk verifikasi.",
             "need_verify": True,
-            "verify_url": verify_url,
         }
         if not os.environ.get("RESEND_API_KEY"):
             resp["message"] += " (Resend API belum dikonfigurasi)"
@@ -462,7 +461,7 @@ async def resend_verification(
     verify_url = f"{SERVER_URL}/api/auth/verify-email?token={verify_token}"
     send_verification_email(email, user.name or email.split("@")[0], verify_url)
 
-    return JSONResponse({"success": True, "message": "Link verifikasi telah dikirim.", "verify_url": verify_url})
+    return JSONResponse({"success": True, "message": "Link verifikasi telah dikirim ke email kamu."})
 
 
 @app.post("/api/auth/login")
