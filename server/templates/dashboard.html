@@ -383,6 +383,26 @@ async function loadHistory(page=1) {
 }
 
 // ── Invoices ──
+async function downloadInvoice(txnId, invNo) {
+    try {
+        const resp = await fetch(`/api/user/invoice/${txnId}/download`, {
+            headers: { Authorization: "Bearer " + TOKEN }
+        });
+        if (!resp.ok) throw new Error("Gagal mengunduh");
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `invoice-${invNo}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast("Invoice berhasil diunduh!");
+    } catch(e) {
+        toast("Gagal mengunduh invoice", "error");
+    }
+}
 async function loadInvoices(page=1) {
     const d = await api(`/api/user/invoices?page=${page}`);
     const tbody = document.getElementById("invoice-table");
@@ -392,7 +412,7 @@ async function loadInvoices(page=1) {
             <td>${t.invoice_number||"-"}</td><td>${t.product.toUpperCase()}</td><td>Rp ${t.amount.toLocaleString()}</td>
             <td><span class="badge badge-${t.status==='success'?'green':t.status==='failed'?'red':'yellow'}">${t.status.toUpperCase()}</span></td>
             <td>${t.created_at?.slice(0,16)||"-"}</td>
-            <td>${t.status==='success'?`<button class="btn btn-outline btn-sm" onclick="window.open('/api/user/invoice/${t.id}/download','_blank')">Download</button>`:""}</td>
+            <td>${t.status==='success'?`<button class="btn btn-outline btn-sm" onclick="downloadInvoice('${t.id}','${t.invoice_number||t.id}')">Download</button>`:""}</td>
         </tr>`).join("");
     let p="";for(let i=1;i<=d.total_pages;i++)p+=`<button class="${i===page?'on':''}" onclick="loadInvoices(${i})">${i}</button>`;
     document.getElementById("invoice-pagination").innerHTML=p;

@@ -660,35 +660,107 @@ async def user_invoices(
     })
 
 
-@app.get("/api/user/invoice/{txn_id}/download", response_class=HTMLResponse)
+@app.get("/api/user/invoice/{txn_id}/download")
 async def download_invoice(
     txn_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Download invoice as HTML receipt."""
+    """Download invoice as HTML file."""
     result = await db.execute(
         select(Transaction).where(Transaction.id == txn_id, Transaction.user_id == user.id)
     )
     txn = result.scalar_one_or_none()
     if not txn:
         raise HTTPException(status_code=404, detail="Invoice tidak ditemukan")
-    inv_no = getattr(txn, "invoice_number", txn.duitku_order_id)
-    return HTMLResponse(f"""<!DOCTYPE html>
-<html lang="id"><head><meta charset="UTF-8"><title>Invoice {inv_no}</title>
-<style>body{{font-family:Arial,sans-serif;max-width:600px;margin:40px auto;padding:20px;}}h1{{color:#3b82f6;}}table{{width:100%;border-collapse:collapse;margin:20px 0;}}td,th{{padding:8px;border-bottom:1px solid #ddd;text-align:left;}}.total{{font-size:20px;font-weight:bold;}}
-@media print{{body{{margin:0;padding:0;}}}}</style></head><body>
-<h1>GMaps Scraper — Invoice</h1>
-<p><strong>Invoice:</strong> {inv_no}<br><strong>Tanggal:</strong> {txn.created_at.strftime('%d %B %Y') if txn.created_at else '-'}</p>
+    inv_no = getattr(txn, "invoice_number", None) or txn.duitku_order_id
+    tgl = txn.created_at.strftime("%d %B %Y") if txn.created_at else "-"
+    jam = txn.created_at.strftime("%H:%M WIB") if txn.created_at else "-"
+    pkg = PACKAGES.get(txn.product.value, {})
+    nama = (user.name or user.email.split("@")[0])[:30]
+    email = user.email
+
+    html = f"""<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice {inv_no}</title>
+<style>
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8fafc;color:#1e293b;padding:20px}}
+.invoice{{max-width:700px;margin:0 auto;background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.1);overflow:hidden}}
+.header{{background:#0a0f1f;color:#fff;padding:32px 28px}}
+.header h1{{font-size:22px;font-weight:800;margin-bottom:4px}}
+.header h1 span{{color:#3b82f6}}
+.header .inv-no{{font-size:13px;color:#94a3b8;margin-top:6px}}
+.body{{padding:28px}}
+.row{{display:flex;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:16px}}
+.col h4{{font-size:11px;text-transform:uppercase;color:#94a3b8;margin-bottom:6px;letter-spacing:.5px}}
+.col p{{font-size:14px;line-height:1.6}}
+table{{width:100%;border-collapse:collapse;margin:20px 0}}
+th{{text-align:left;padding:10px 0;border-bottom:2px solid #e2e8f0;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.5px}}
+td{{padding:12px 0;border-bottom:1px solid #f1f5f9;font-size:14px}}
+.t-right{{text-align:right}}
+.summary{{margin-top:8px;border-top:2px solid #e2e8f0;padding-top:16px}}
+.summary .line{{display:flex;justify-content:space-between;padding:4px 0;font-size:14px;color:#475569}}
+.summary .total{{font-size:18px;font-weight:800;color:#0a0f1f;padding-top:8px;margin-top:8px;border-top:1px solid #e2e8f0}}
+.status{{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}}
+.status-success{{background:#dcfce7;color:#16a34a}}
+.status-pending{{background:#fef3c7;color:#d97706}}
+.status-failed{{background:#fee2e2;color:#dc2626}}
+.footer{{padding:20px 28px;border-top:1px solid #f1f5f9;text-align:center;color:#94a3b8;font-size:12px}}
+.btn-print{{display:inline-block;margin-top:20px;padding:10px 24px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none}}
+@media print{{
+body{{background:#fff;padding:0}}
+.invoice{{box-shadow:none;border-radius:0}}
+.header{{background:#0a0f1f!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+.btn-print{{display:none}}
+}}
+</style>
+</head>
+<body>
+<div class="invoice">
+<div class="header">
+<h1>GMaps<span>Scraper</span></h1>
+<div class="inv-no">Invoice #{inv_no}</div>
+</div>
+<div class="body">
+<div class="row">
+<div class="col"><h4>Ditagihkan Kepada</h4><p>{nama}<br>{email}</p></div>
+<div class="col" style="text-align:right"><h4>Tanggal</h4><p>{tgl}<br>{jam}</p></div>
+</div>
 <table>
-<tr><td>Paket</td><td><strong>{txn.product.value.upper()}</strong></td></tr>
-<tr><td>Total</td><td class="total">Rp {int(txn.amount):,}</td></tr>
-<tr><td>Status</td><td>{txn.status.value.upper()}</td></tr>
-<tr><td>Metode</td><td>{txn.payment_method or '-'}</td></tr>
+<thead><tr><th>Deskripsi</th><th class="t-right">Jumlah</th></tr></thead>
+<tbody>
+<tr><td>Paket GMaps Scraper — {txn.product.value.upper()}<br><small style="color:#94a3b8">{pkg.get('quota','?')}x pencarian &middot; Maks {pkg.get('max_scrolls','?')} scroll</small></td><td class="t-right">Rp {int(txn.amount):,}</td></tr>
+</tbody>
 </table>
-<p style="color:#888;font-size:12px;">Terima kasih telah menggunakan GMaps Scraper.</p>
-<script>window.print();</script>
-</body></html>""")
+<div class="summary">
+<div class="line"><span>Subtotal</span><span>Rp {int(txn.amount):,}</span></div>
+<div class="line"><span>Biaya Layanan</span><span>Rp 0</span></div>
+<div class="total"><span>Total</span><span>Rp {int(txn.amount):,}</span></div>
+</div>
+<div style="margin-top:12px;">
+<span class="status status-{txn.status.value}">{txn.status.value.upper()}</span>
+<span style="margin-left:12px;font-size:13px;color:#64748b">Metode: {txn.payment_method or '-'}</span>
+</div>
+<button class="btn-print" onclick="window.print()">Cetak / Simpan PDF</button>
+</div>
+<div class="footer">
+Terima kasih telah menggunakan GMaps Scraper &middot; gmapsscraper.pro
+</div>
+</div>
+</body>
+</html>"""
+
+    return HTMLResponse(
+        content=html,
+        headers={
+            "Content-Disposition": f"attachment; filename=invoice-{inv_no}.html",
+            "Cache-Control": "no-cache",
+        },
+    )
 
 
 @app.post("/api/user/profile")
